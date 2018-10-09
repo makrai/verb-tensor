@@ -126,7 +126,8 @@ def orth_als(X, rank, **kwargs):
            Foundations of the PARAFAC procedure: models and conditions for an 'explanatory' multimodal factor analysis.
            UCLA Working Papers in Phonetics 16, (1970).
     .. [3] Carroll, J. D.,  Chang, J. J.
-           Analysis of individual differences in multidimensional scaling via an N-way generalization of 'Eckart-Young' decomposition.
+           Analysis of individual differences in multidimensional scaling 
+           via an N-way generalization of 'Eckart-Young' decomposition.
            Psychometrika 35, 283–319 (1970).
     .. [4] V. Sharan, G. Valiant
            Orthogonalized ALS: A Theoretically Principled Tensor Decomposition Algorithm for Practical Use 
