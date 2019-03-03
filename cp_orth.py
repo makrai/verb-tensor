@@ -1,3 +1,5 @@
+# This script has been downloaded from http://web.stanford.edu/~vsharan/cp_orth.py
+
 # coding: utf-8
 #
 # This program is free software: you can redistribute it and/or modify
@@ -63,7 +65,7 @@ def orth_als(X, rank, **kwargs):
     init : {'random', 'nvecs'}, optional
         The initialization method to use.
             - random : Factor matrices are initialized randomly.
-            - nvecs : Factor matrices are initialzed via HOSVD.
+            - nvecs :  Factor matrices are initialzed via HOSVD.
         (default 'nvecs')
     max_iter : int, optional
         Maximium number of iterations of the ALS algorithm.
