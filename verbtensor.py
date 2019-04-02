@@ -42,8 +42,8 @@ class VerbTensorDecomposition():
         self.cutoff = cutoff
         self.rank = rank
         self.projdir = os.path.join(
-            '/mnt/permanent/home/makrai/project/verb-tensor', 
-            'prev_sep' if self.separate_prev else 'sktensor')
+            '/mnt/store/home/makrai/project/verb-tensor/smooth', 
+            'prev_sep' if self.separate_prev else 'holis')
 
     def get_prev_verb(self):
         names = ['lemma', 'token_freq', 'pos', 'doc_freq', 'normalized']
@@ -123,7 +123,7 @@ class VerbTensorDecomposition():
             else:
                 for i, word in enumerate(svo):
                     coords[i].append(indices[i][svo[i]])
-                data.append(np.log(freq))
+                data.append(np.log(freq + 1)
         logging.info('  Creating array')
         shape = tuple(map(len, indices))
         logging.info(shape)
