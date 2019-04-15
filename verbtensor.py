@@ -14,7 +14,6 @@ import numpy as np
 import pandas as pd
 import pickle
 import random
-import sparse
 #import tensorly as tl
 #import tensorly.decomposition as decomp
 import sktensor
@@ -44,6 +43,7 @@ class VerbTensorDecomposition():
         self.projdir = os.path.join(
             '/mnt/store/home/makrai/project/verb-tensor/smooth', 
             'prev_sep' if self.separate_prev else 'holis')
+        self.ndim = 3 + bool(separate_prev)
 
     def get_prev_verb(self):
         names = ['lemma', 'token_freq', 'pos', 'doc_freq', 'normalized']
@@ -67,7 +67,7 @@ class VerbTensorDecomposition():
         if self.separate_prev:
             prev_verb = get_prev_verb()
         occurrence = defaultdict(int)
-        margianls = [defaultdict(int) for _ in range(3 + bool(self.separate_prev))]
+        margianls = [defaultdict(int) for _ in range(self.ndim)]
         verb_name_l =  ['prev', 'verb'] if self.separate_prev else ['stem']
         ax_names = ['NOM'] +  verb_name_l + ['ACC']
         with open(path) as infile:
@@ -88,21 +88,16 @@ class VerbTensorDecomposition():
                 if self.separate_prev: 
                     record['prev'], record['verb'] = prev_verb[record['stem']]
                 occurrence[tuple(record[name] for name in ax_names)] += 1
-                for i, mode in enumerate(ax_names):
-                    margianls[i][record[mode]] += 1            
+                for j, mode in enumerate(ax_names):
+                    margianls[j][record[mode]] += 1            
+        for ax, word in enumerate(['aki', 'van', '']):
+            logging.debug((margianls[i][word]))
         result = occurrence, margianls
         pickle.dump(result, open(pickle_path, mode='wb'))
         return result                
 
-    def get_tensor(self):
-        logging.info('Reweighting: log')
-        verb_tensor_path = os.path.join(self.projdir, 'tensor_{}.pkl').format(self.cutoff)
-        if os.path.exists(verb_tensor_path):
-            logging.info('Loading tensor from {}'.format(verb_tensor_path))
-            tensor, indices = pickle.load(open(verb_tensor_path, mode='rb'))
-            logging.debug(tensor.shape)
-            return tensor, indices
-        occurrence, marginals = self.mazsola_reader()
+    def get_tensor(self, log=True, divide_by_marginal=False):
+
         def get_index(freq_dict):
             items = sorted( 
                     filter(lambda item: item[1] >= self.cutoff, freq_dict.items()),
@@ -110,27 +105,61 @@ class VerbTensorDecomposition():
             logging.debug(items[-3:])
             return dict([(w, i) for i, (w, f) in enumerate(items)])
 
-        coords, data = tuple([] for _ in range(3 + bool(self.separate_prev))), []
+        verb_tensor_path = os.path.join(self.projdir, '{}_{}.pkl').format(
+                'pmi' if divide_by_marginal else 'logfreq', # TODO
+                self.cutoff)
+        if False:#os.path.exists(verb_tensor_path):
+            logging.info('Loading tensor from {}'.format(verb_tensor_path))
+            tensor, indices = pickle.load(open(verb_tensor_path, mode='rb'))
+            logging.debug(tensor.shape)
+            return tensor, indices
+        occurrence, marginals = self.mazsola_reader() 
+        coords, data = tuple([] for _ in range(self.ndim)), []
         indices = [get_index(fd) for fd in marginals]
         logging.info('Building tensor...')
         logging.info('  Pupulating lists...')
+        total = 0
         for i, ((svo), freq) in enumerate(occurrence.items()):
             if not i % 2000000:
-                logging.debug('    {:,}'.format(i))#'{} {}'.format(svo[1], freq))
-            for i, word in enumerate(svo):
-                if svo[i] not in indices[i]:
+                logging.debug('    {:,}'.format(i))
+            for j, word in enumerate(svo):
+                if svo[j] not in indices[j]:
                     break
             else:
                 for i, word in enumerate(svo):
                     coords[i].append(indices[i][svo[i]])
-                data.append(np.log(freq + 1)
+                to_debug = (coords[0][-1] == 1 and coords[1][-1] == 1 and coords[2][-1]
+                        == 0)
+                #if not pmi:    
+                # TODO freq += 1
+                if to_debug:
+                    logging.debug(freq)
+                total += freq
+                if to_debug:
+                    logging.debug(freq)
+                if divide_by_marginal:
+                    # TODO PPMI 
+                    for i in range(self.ndim):
+                        freq /= marginals[i][svo[i]]
+                        if to_debug:
+                            logging.debug((marginals[i][svo[i]], freq))
+                if log:
+                    freq = np.log(freq)
+                if to_debug:
+                    logging.debug(freq)
+                data.append(freq)
+        logging.info('  Total: {}'.format(total))
         logging.info('  Creating array')
         shape = tuple(map(len, indices))
         logging.info(shape)
-        # if middle_end == 'tensorly':
-        # tensor = sparse.COO(coords, data, shape=shape)#, has_duplicates=False)
+        data = np.array(data)
+        if divide_by_marginal:
+            if log:
+                data += 2 * np.log(total)
+            else: 
+                data *= total**2
         tensor = sktensor.sptensor(coords, data, shape=shape)
-        pickle.dump((tensor, indices), open(verb_tensor_path, mode='wb'))
+        #pickle.dump((tensor, indices), open(verb_tensor_path, mode='wb'))
         logging.info(tensor)
         return tensor, indices
 
