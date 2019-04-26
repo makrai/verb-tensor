@@ -16,7 +16,7 @@ from cp_orth import orth_als
 import sktensor
 
 import logging
-logging.basicConfig(level=logging.DEBUG, 
+logging.basicConfig(level=logging.DEBUG,
         format='%(levelname)-8s [%(lineno)d] %(message)s')
 
 
@@ -78,7 +78,8 @@ def append_pmi(svo_count, modes=['NOM', 'stem', 'ACC'], compute_freq=True,
     return svo_count, log_total
 
 
-def get_tensor(df, column='freq2'):
+def get_tensor(df, column):
+    logging.debug(column)
     modes=['NOM', 'stem', 'ACC']
     index = {mode: bidict(df.groupby(mode)[column].sum().argsort().to_dict())
             for mode in modes}
@@ -92,20 +93,25 @@ def get_tensor(df, column='freq2'):
     shape=tuple(len(index[mode]) for mode in modes)
     logging.debug(([len(y) for y in coords], len(data)))
     logging.info(shape)
-    return sktensor.sptensor(coords, data, shape=shape)
+    return sktensor.sptensor(coords, data, shape=shape), index
 
 
-def decomp(mazsola_df, cutoff=1, rank=100):
+def decomp(mazsola_df, column='freq2', cutoff=1, rank=100):
+    logging.debug((cutoff, rank))
     pmi_dir = '/mnt/store/home/makrai/project/verb-tensor/pmi/'
-    vtensor = get_tensor(mazsola_df[mazsola_df.freq>cutoff].copy())
-    pickle.dump(result, open(os.path.join(pmi_dir,
-        '{}_{}_{}.pkl').format('sparset', cutoff, rank), mode='wb'))
+    vtensor, index = get_tensor(mazsola_df[mazsola_df.freq>cutoff].copy(), 
+            column=column)
+    pickle.dump((vtensor, index), open(os.path.join(pmi_dir,
+        '{}_{}_{}_{}.pkl').format('sparstensr', column, cutoff, rank), mode='wb'))
     result = orth_als(vtensor, rank)
     pickle.dump(result, open(os.path.join(pmi_dir,
-        '{}_{}_{}.pkl').format('ktensor', cutoff, rank), mode='wb'))
+        '{}_{}_{}_{}.pkl').format('ktensor', column, cutoff, rank), mode='wb'))
 
 
 if __name__ == '__main__':
-    mazsola_df, log_total = append_pmi(mazsola_df, compute_freq=False) 
-    for cutoff_exp in range(5, -1, -1):
+    mazsola_df = pd.read_csv(
+            '/mnt/permanent/Language/Hungarian/Dic/sass15-535k-igei-szerkezet/mazsola_adatbazis_svo_freq.tsv',
+            sep='\t')
+    mazsola_df, log_total = append_pmi(mazsola_df, compute_freq=False)
+    for cutoff_exp in range(6, -1, -1):
         decomp(mazsola_df, cutoff=2**cutoff_exp)
