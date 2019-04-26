@@ -81,6 +81,8 @@ def append_pmi(svo_count, modes=['NOM', 'stem', 'ACC'], compute_freq=True,
 def get_tensor(df, column):
     logging.debug(column)
     modes=['NOM', 'stem', 'ACC']
+    if column == 'freq':
+        df[column] = np.log(df[column] + 1)
     index = {mode: bidict(df.groupby(mode)[column].sum().argsort().to_dict())
             for mode in modes}
     for mode in modes:
@@ -96,13 +98,17 @@ def get_tensor(df, column):
     return sktensor.sptensor(coords, data, shape=shape), index
 
 
-def decomp(mazsola_df, column='freq2', cutoff=1, rank=100):
+def decomp(mazsola_df, column='freq', cutoff=1, rank=100):
     logging.debug((cutoff, rank))
     pmi_dir = '/mnt/store/home/makrai/project/verb-tensor/pmi/'
-    vtensor, index = get_tensor(mazsola_df[mazsola_df.freq>cutoff].copy(), 
-            column=column)
-    pickle.dump((vtensor, index), open(os.path.join(pmi_dir,
-        '{}_{}_{}_{}.pkl').format('sparstensr', column, cutoff, rank), mode='wb'))
+    sparse_filen = '{}_{}_{}.pkl'.format('sparstensr', column, cutoff)
+    if os.path.exists(sparse_filen):
+        vtensor, index =  pickle.load(open(sparse_filen, mode='rb'))
+    else:
+        vtensor, index = get_tensor(mazsola_df[mazsola_df.freq>cutoff].copy(), 
+                                    column=column)
+        pickle.dump((vtensor, index), open(os.path.join(pmi_dir, sparse_filen),
+                                                        mode='wb'))
     result = orth_als(vtensor, rank)
     pickle.dump(result, open(os.path.join(pmi_dir,
         '{}_{}_{}_{}.pkl').format('ktensor', column, cutoff, rank), mode='wb'))
@@ -111,7 +117,8 @@ def decomp(mazsola_df, column='freq2', cutoff=1, rank=100):
 if __name__ == '__main__':
     mazsola_df = pd.read_csv(
             '/mnt/permanent/Language/Hungarian/Dic/sass15-535k-igei-szerkezet/mazsola_adatbazis_svo_freq.tsv',
-            sep='\t')
+            sep='\t', keep_default_na=False)
     mazsola_df, log_total = append_pmi(mazsola_df, compute_freq=False)
+    decomp(mazsola_df, column='iact_sali', cutoff=2**7, rank=50)
     for cutoff_exp in range(6, -1, -1):
-        decomp(mazsola_df, cutoff=2**cutoff_exp)
+        decomp(mazsola_df, column='iact_sali', cutoff=2**cutoff_exp)
