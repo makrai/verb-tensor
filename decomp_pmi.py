@@ -120,5 +120,6 @@ if __name__ == '__main__':
             sep='\t', keep_default_na=False)
     mazsola_df, log_total = append_pmi(mazsola_df, compute_freq=False)
     decomp(mazsola_df, column='iact_sali', cutoff=2**7, rank=50)
-    for cutoff_exp in range(6, -1, -1):
-        decomp(mazsola_df, column='iact_sali', cutoff=2**cutoff_exp)
+    for column in ['freq', 'pmi', 'iact_info', 'salience', 'iact_sali',
+                   'dice']:
+        decomp(mazsola_df, column=column, cutoff=0)
