@@ -88,9 +88,9 @@ def get_tensor(df, column):
     for mode in modes:
         index[mode][np.nan] = len(index[mode])
         df['{}_i'.format(mode)] = df[mode].apply(index[mode].get)
-    logging.debug('')
-    x = df[['{}_i'.format(mode) for mode in modes]].T.to_records(index=False)
-    coords = tuple(map(list, x))
+    logging.debug('Creating tensor..')
+    coords = df[['{}_i'.format(mode) for mode in modes]].T.to_records(index=False)
+    coords = tuple(map(list, coords))
     data = df[column].values
     shape=tuple(len(index[mode]) for mode in modes)
     logging.debug(([len(y) for y in coords], len(data)))
@@ -98,13 +98,19 @@ def get_tensor(df, column):
     return sktensor.sptensor(coords, data, shape=shape), index
 
 
-def decomp(mazsola_df, column='freq', cutoff=1, rank=100):
+def decomp(column='freq', cutoff=1, rank=100):
     logging.debug((cutoff, rank))
     pmi_dir = '/mnt/store/home/makrai/project/verb-tensor/pmi/'
     sparse_filen = '{}_{}_{}.pkl'.format('sparstensr', column, cutoff)
-    if os.path.exists(sparse_filen):
-        vtensor, index =  pickle.load(open(sparse_filen, mode='rb'))
+    if os.path.exists(os.path.join(pmi_dir, sparse_filen)):
+        logging.info('Loading tensor..')
+        vtensor, index =  pickle.load(open(
+            os.path.join(pmi_dir, sparse_filen), mode='rb'))
     else:
+        mazsola_df = pd.read_csv(
+            '/mnt/permanent/Language/Hungarian/Dic/sass15-535k-igei-szerkezet/mazsola_adatbazis_svo_freq.tsv',
+            sep='\t', keep_default_na=False)
+        mazsola_df, log_total = append_pmi(mazsola_df, compute_freq=False)
         vtensor, index = get_tensor(mazsola_df[mazsola_df.freq>cutoff].copy(), 
                                     column=column)
         pickle.dump((vtensor, index), open(os.path.join(pmi_dir, sparse_filen),
@@ -115,11 +121,6 @@ def decomp(mazsola_df, column='freq', cutoff=1, rank=100):
 
 
 if __name__ == '__main__':
-    mazsola_df = pd.read_csv(
-            '/mnt/permanent/Language/Hungarian/Dic/sass15-535k-igei-szerkezet/mazsola_adatbazis_svo_freq.tsv',
-            sep='\t', keep_default_na=False)
-    mazsola_df, log_total = append_pmi(mazsola_df, compute_freq=False)
-    decomp(mazsola_df, column='iact_sali', cutoff=2**7, rank=50)
     for column in ['freq', 'pmi', 'iact_info', 'salience', 'iact_sali',
                    'dice']:
-        decomp(mazsola_df, column=column, cutoff=0)
+        decomp(column=column, cutoff=0)#, rank=2)
