@@ -18,13 +18,13 @@ logging.basicConfig(level=logging.DEBUG, format='%(levelname)-8s [%(lineno)d] %(
 def select_from_conll():
     deps_wanted = ['nsubj', 'ROOT', 'dobj']
     freq = defaultdict(int)
-    for filen in glob.glob('/mnt/permanent/Language/English/Crawl/DepCC/corpus/parsed/part-m-*00.gz'):
+    for filen in glob.glob('/mnt/permanent/Language/English/Crawl/DepCC/corpus/parsed/part-m-*0.gz'):
         logging.info(filen)
         with gzip.open(filen, mode='rt', encoding="utf-8") as infile:
             triple = {}
             argument_clash = False
             for i, line in enumerate(infile):
-                if not i % 10000000:
+                if False:#not i % 10000000:
                     logging.debug((i, len(freq)))
                 line = line.strip()
                 if line.startswith('#'):
@@ -55,7 +55,7 @@ freq = select_from_conll()
 df = pd.DataFrame.from_records([triple+tuple([count]) for (triple, count) in freq.items()], 
                           columns=['nsubj', 'ROOT', 'dobj', 'freq']) 
 df = df.sort_values('freq', ascending=False) 
-df.to_csv('/mnt/store/home/makrai/project/verb-tensor/depCC-00.tsv', sep='\t', index=False)
+df.to_csv('/mnt/store/home/makrai/project/verb-tensor/depCC-0.tsv', sep='\t', index=False)
 
 
 # * conllu expects indexing from 1.
