@@ -21,24 +21,15 @@ logging.basicConfig(level=logging.DEBUG,
 
 class VerbTensor():
     def __init__(self, cutoff=1):#rank
-        #self.separate_prev = separate_prev
         self.cutoff = cutoff
         #self.rank = rank
-        self.mazsola_dir = '/mnt/permanent/Language/Hungarian/Dic/sass15-535k-igei-szerkezet/'
-        self.mazsola_df = None
-        self.pmi_dir = '/mnt/store/home/makrai/project/verb-tensor/pmi/'
-        self.pmi_df_filen =  os.path.join(self.mazsola_dir, 'mazsola_adatbazis_svo_pmi.tsv')
+        self.project_dir = '/mnt/store/home/makrai/project/verb-tensor/'
+        self.subproject_dir = os.path.join(self.project_dir, 'depCC/')
+        self.pmi_df_filen = os.path.join(self.project_dir, 'depCC.tsv')
 
-    def append_pmi(self, svo_count, modes=['NOM', 'stem', 'ACC'],
-                   compute_freq=False, debug_index=None):
-        if compute_freq:
-            logging.info('Computing freq..')
-            svo_count = svo_count.groupby(modes).size().reset_index(
-                name='freq')
-            svo_count.sort_values('freq', ascending=False).to_csv(
-                os.path.join(self.mazsola_dir,
-                             '/mazsola_adatbazis_svo_freq.tsv'), sep='\t',
-                index=False)
+    def append_pmi(self, svo_count, modes=['nsubj, ROOT, dobj'],
+                   debug_index=None):
+        # mazsola: ['NOM', 'stem', 'ACC']
         logging.info('Computing marginals..')
         marginal = {mode: svo_count.groupby(mode).sum() for mode in modes}
         logging.info('Computing 2-marginals..')
@@ -78,15 +69,16 @@ class VerbTensor():
             svo_count.iact_info += svo_count['freq_{}'.format(mode)]
             if debug_index:
                 logging.debug(svo_count.loc[debug_index])
-        svo_count.pmi = np.max(svo_count.pmi, 0)
-        # TODO positive iact, sali, logDice..
         for mode_pair in itertools.combinations(modes, 2):
             svo_count.iact_info -= svo_count['freq_{}'.format(mode_pair)]
             if debug_index:
                 logging.debug(svo_count.loc[debug_index])
+        svo_count.pmi = np.max(svo_count.pmi, 0)
+        svo_count.iact_info = np.max(svo_count.iact_info, 0) # TODO Is it OK?
         logging.info('Computing salience..')
         svo_count['salience'] = svo_count.pmi * svo_count.freq2
         svo_count['iact_sali'] = svo_count.iact_info * svo_count.freq2
+        logging.info('Writing..')
         svo_count.to_csv(self.pmi_df_filen, sep='\t', index=False)
         return svo_count, log_total
 
@@ -111,7 +103,7 @@ class VerbTensor():
         logging.info(shape)
         self.sparse_tensor = sktensor.sptensor(coords, data, shape=shape)
         pickle.dump((self.sparse_tensor, self.index), open(os.path.join(
-            self.pmi_dir, self.sparse_filen), mode='wb'))
+            self.subproject_dir, self.sparse_filen), mode='wb'))
 
     def get_sparse(self, weight):
         if os.path.exists(self.sparse_filen):
@@ -119,29 +111,22 @@ class VerbTensor():
             self.sparse_tensor, self.index =  pickle.load(open(
                 self.sparse_filen, mode='rb'))
         else:
-            if self.mazsola_df is not None:
-                pass
-            elif os.path.exists(self.pmi_df_filen):
-                logging.info('Reading association weights from data-frame..')
-                self.mazsola_df = pd.read_csv(
-                    self.pmi_df_filen, sep='\t', keep_default_na=False)
-            else:
-                self.mazsola_df = pd.read_csv(os.path.join(
-                    self.mazsola_dir, 'mazsola_adatbazis_svo_freq.tsv'),
-                                         sep='\t', keep_default_na=False)
-                self.mazsola_df, log_total = self.append_pmi(self.mazsola_df)
+            #elif os.path.exists(self.pmi_df_filen):
+            logging.info('Reading association weights from data-frame..')
+            self.pmi_df = pd.read_csv(
+                self.pmi_df_filen, sep='\t', keep_default_na=False)
             self.create_sparse(
-                self.mazsola_df[self.mazsola_df.freq>self.cutoff].copy(),
+                self.pmi_df[self.pmi_df.freq>self.cutoff].copy(),
                 weight)
 
     def decomp(self, weight, rank):
         logging.info((weight, rank, self.cutoff))
-        decomp_filen = os.path.join( self.pmi_dir, '{}_{}_{}_{}.pkl').format(
+        decomp_filen = os.path.join( self.subproject_dir, '{}_{}_{}_{}.pkl').format(
             'ktensor', weight, self.cutoff, rank)
         if os.path.exists(decomp_filen):
             logging.warning('File exists')
             return
-        self.sparse_filen = os.path.join(self.pmi_dir, '{}_{}_{}.pkl'.format(
+        self.sparse_filen = os.path.join(self.subproject_dir, '{}_{}_{}.pkl'.format(
             'sparstensr', weight, self.cutoff))
         self.get_sparse(weight)
         result = orth_als(self.sparse_tensor, rank)
@@ -151,19 +136,16 @@ class VerbTensor():
 def parse_args():
     parser = argparse.ArgumentParser(
         description='Decompose a tensor of verb and argument cooccurrences')
-    parser.add_argument('--separate_prev', action='store_true')
     parser.add_argument('--weight', default='freq')
     parser.add_argument('--cutoff', type=int, default=0)
     parser.add_argument('--rank', type=int, default=100)
     return parser.parse_args()
 
 if __name__ == '__main__':
-    #args = parse_args()
+    args = parse_args()
     decomposer = VerbTensor()
-    for weight in ['freq', 'pmi', 'iact_info', 'salience', 'iact_sali',
-                   'dice']:
-        for rank in [50, 2]:
-            try:
-                decomposer.decomp(weight, rank)
-            except Exception as e:
-                logging.warning(e)
+    #for weight in ['freq', 'pmi', 'iact_info', 'salience', 'iact_sali', 'dice']:
+    #try:
+    decomposer.decomp(args.weight, args.rank)
+    #except Exception as e:
+    #logging.warning(e)
