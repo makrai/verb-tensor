@@ -2,6 +2,7 @@
 # coding: utf-8
 
 
+import argparse
 from bidict import bidict
 from collections import defaultdict
 import itertools
@@ -26,21 +27,21 @@ class VerbTensor():
         self.project_dir = '/mnt/store/home/makrai/project/verb-tensor/'
         self.subproject_dir = os.path.join(self.project_dir, 'depCC/')
         self.pmi_df_filen = os.path.join(self.project_dir, 'depCC.tsv')
-
-    def append_pmi(self, svo_count, modes=['nsubj, ROOT, dobj'],
-                   debug_index=None):
+        self.modes = ['nsubj, ROOT, dobj']
         # mazsola: ['NOM', 'stem', 'ACC']
+
+    def append_pmi(self, svo_count, debug_index=None):
         logging.info('Computing marginals..')
-        marginal = {mode: svo_count.groupby(mode).sum() for mode in modes}
+        marginal = {mode: svo_count.groupby(mode).sum() for mode in self.modes}
         logging.info('Computing 2-marginals..')
         marginal2 = {mode_pair: svo_count.groupby(list(mode_pair)).sum()
-                 for mode_pair in itertools.combinations(modes, 2)}
+                 for mode_pair in itertools.combinations(self.modes, 2)}
         log_total = np.log2(svo_count.freq.sum())
-        for mode in modes:
+        for mode in self.modes:
             svo_count = svo_count.join(marginal[mode], on=mode,
                     rsuffix='_{}'.format(mode))
         logging.info('Computing Dice..')
-        for mode_pair in itertools.combinations(modes, 2):
+        for mode_pair in itertools.combinations(self.modes, 2):
             svo_count = svo_count.join(marginal2[mode_pair], on=mode_pair,
                     rsuffix='_{}'.format(mode_pair))
         svo_count['dice'] = 3*svo_count.freq # This is only the numerator.
@@ -48,7 +49,7 @@ class VerbTensor():
         if debug_index:
             logging.debug(svo_count.loc[debug_index])
         svo_count['dice_denom'] = 0
-        for mode in modes:
+        for mode in self.modes:
             svo_count.dice_denom += svo_count['freq_{}'.format(mode)]
             if debug_index:
                 logging.debug(svo_count.loc[debug_index])
@@ -64,12 +65,12 @@ class VerbTensor():
         svo_count['iact_info'] = -svo_count.freq2
         if debug_index:
             logging.debug(svo_count.loc[debug_index])
-        for mode in modes:
+        for mode in self.modes:
             svo_count.pmi -= svo_count['freq_{}'.format(mode)]
             svo_count.iact_info += svo_count['freq_{}'.format(mode)]
             if debug_index:
                 logging.debug(svo_count.loc[debug_index])
-        for mode_pair in itertools.combinations(modes, 2):
+        for mode_pair in itertools.combinations(self.modes, 2):
             svo_count.iact_info -= svo_count['freq_{}'.format(mode_pair)]
             if debug_index:
                 logging.debug(svo_count.loc[debug_index])
@@ -78,27 +79,27 @@ class VerbTensor():
         logging.info('Computing salience..')
         svo_count['salience'] = svo_count.pmi * svo_count.freq2
         svo_count['iact_sali'] = svo_count.iact_info * svo_count.freq2
-        logging.info('Writing..')
-        svo_count.to_csv(self.pmi_df_filen, sep='\t', index=False)
+        logging.info('Writing to {}..'.format(self.pmi_df_filen))
+        svo_count.to_csv(self.pmi_df_filen, sep='\t', index=False,
+                         float_format='%.5g')
         return svo_count, log_total
 
     def create_sparse(self, df, weight):
         logging.debug(weight)
-        modes=['NOM', 'stem', 'ACC']
-        if weight == 'freq':
+        if weight == 'freq': # TODO Is this needed?
             df[weight] = np.log(df[weight] + 1)
         self.index = {
             mode: bidict(df.groupby(mode)[weight].sum().argsort().to_dict())
-            for mode in modes}
-        for mode in modes:
+            for mode in self.modes}
+        for mode in self.modes:
             self.index[mode][np.nan] = len(self.index[mode])
             df['{}_i'.format(mode)] = df[mode].apply(self.index[mode].get)
         logging.debug('Creating tensor..')
         coords = df[['{}_i'.format(mode)
-                     for mode in modes]].T.to_records(index=False)
+                     for mode in self.modes]].T.to_records(index=False)
         coords = tuple(map(list, coords))
         data = df[weight].values
-        shape=tuple(len(self.index[mode]) for mode in modes)
+        shape=tuple(len(self.index[mode]) for mode in self.modes)
         logging.debug(([len(y) for y in coords], len(data)))
         logging.info(shape)
         self.sparse_tensor = sktensor.sptensor(coords, data, shape=shape)
@@ -111,17 +112,18 @@ class VerbTensor():
             self.sparse_tensor, self.index =  pickle.load(open(
                 self.sparse_filen, mode='rb'))
         else:
-            #elif os.path.exists(self.pmi_df_filen):
-            logging.info('Reading association weights from data-frame..')
+            logging.info(
+                'Reading association weights from {}..'.format(
+                    self.pmi_df_filen))
             self.pmi_df = pd.read_csv(
                 self.pmi_df_filen, sep='\t', keep_default_na=False)
             self.create_sparse(
-                self.pmi_df[self.pmi_df.freq>self.cutoff].copy(),
+                self.pmi_df[self.pmi_df.freq>self.cutoff].copy(), # TODO ?
                 weight)
 
     def decomp(self, weight, rank):
         logging.info((weight, rank, self.cutoff))
-        decomp_filen = os.path.join( self.subproject_dir, '{}_{}_{}_{}.pkl').format(
+        decomp_filen = os.path.join(self.subproject_dir, '{}_{}_{}_{}.pkl').format(
             'ktensor', weight, self.cutoff, rank)
         if os.path.exists(decomp_filen):
             logging.warning('File exists')
@@ -137,13 +139,13 @@ def parse_args():
     parser = argparse.ArgumentParser(
         description='Decompose a tensor of verb and argument cooccurrences')
     parser.add_argument('--weight', default='freq')
-    parser.add_argument('--cutoff', type=int, default=0)
+    parser.add_argument('--cutoff', type=int, default=0) # TODO ?
     parser.add_argument('--rank', type=int, default=100)
     return parser.parse_args()
 
 if __name__ == '__main__':
     args = parse_args()
-    decomposer = VerbTensor()
+    decomposer = VerbTensor(cutoff=args.cutoff)
     #for weight in ['freq', 'pmi', 'iact_info', 'salience', 'iact_sali', 'dice']:
     #try:
     decomposer.decomp(args.weight, args.rank)
