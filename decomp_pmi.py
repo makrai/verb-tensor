@@ -21,16 +21,25 @@ logging.basicConfig(level=logging.DEBUG,
         format='%(levelname)-8s [%(lineno)d] %(message)s')
 
 class VerbTensor():
-    def __init__(self, cutoff=1):#rank
+    def __init__(self, cutoff=1):
         self.cutoff = cutoff
-        #self.rank = rank
         self.project_dir = '/mnt/store/home/makrai/project/verb-tensor/'
-        self.subproject_dir = os.path.join(self.project_dir, 'depCC/')
-        self.pmi_df_filen = os.path.join(self.project_dir, 'depCC.tsv')
+        self.tensor_dir = os.path.join(self.project_dir, 'depCC')
+        self.assoc_df_filen_patt = os.path.join(self.project_dir,
+                                                'dataframe/depCC/assoc00.{}')
         self.modes = ['nsubj, ROOT, dobj']
         # mazsola: ['NOM', 'stem', 'ACC']
 
-    def append_pmi(self, svo_count, debug_index=None):
+    def append_pmi(self, svo_count=None, debug_index=None):
+        """
+        This function can be used on without the rest of the class, by passing
+        svo_count. In the class use, svo_count has not to be passed. See the
+        logging.info messages as well.
+        """
+        if svo_count is None:
+            filen = os.path.join(self.project_dir,
+                                 'dataframe/depCC/freq00.tsv')
+            svo_count = df.read_csv(filen, sep='\t')
         logging.info('Computing marginals..')
         marginal = {mode: svo_count.groupby(mode).sum() for mode in self.modes}
         logging.info('Computing 2-marginals..')
@@ -75,16 +84,31 @@ class VerbTensor():
             if debug_index:
                 logging.debug(svo_count.loc[debug_index])
         svo_count.pmi = np.max(svo_count.pmi, 0)
-        svo_count.iact_info = np.max(svo_count.iact_info, 0) # TODO Is it OK?
+        svo_count.iact_info = np.max(svo_count.iact_info, 0) 
+        # TODO Interpretation of positive pointwise interaction information
         logging.info('Computing salience..')
         svo_count['salience'] = svo_count.pmi * svo_count.freq2
         svo_count['iact_sali'] = svo_count.iact_info * svo_count.freq2
-        logging.info('Writing to {}..'.format(self.pmi_df_filen))
-        svo_count.to_csv(self.pmi_df_filen, sep='\t', index=False,
-                         float_format='%.5g')
+        logging.info('Saving to {}..'.format(self.assoc_df_filen_patt))
+        svo_count.to_pickle(self.assoc_df_filen_patt.format('pkl'))
+        svo_count.to_csv(self.assoc_df_filen_patt.format('tsv'), sep='\t',
+                         index=False, float_format='%.5g')
         return svo_count, log_total
 
-    def create_sparse(self, df, weight):
+    def get_sparse(self, weight):
+        if os.path.exists(self.sparse_filen):
+            logging.info('Loading tensor..')
+            self.sparse_tensor, self.index =  pickle.load(open(
+                self.sparse_filen, mode='rb'))
+            return
+        if os.path.exists(self.assoc_df_filen_patt.format('pkl')):
+            logging.info('Reading association weights from {}..'.format(
+                self.assoc_df_filen_patt))
+            self.pmi_df = pd.read_pickle(
+                self.assoc_df_filen_patt.format('pkl'))
+        else:
+            self.pmi_df, log_total = self.append_pmi()
+        df = self.pmi_df[self.pmi_df.freq>self.cutoff].copy(), # TODO ?
         logging.debug(weight)
         if weight == 'freq': # TODO Is this needed?
             df[weight] = np.log(df[weight] + 1)
@@ -104,32 +128,19 @@ class VerbTensor():
         logging.info(shape)
         self.sparse_tensor = sktensor.sptensor(coords, data, shape=shape)
         pickle.dump((self.sparse_tensor, self.index), open(os.path.join(
-            self.subproject_dir, self.sparse_filen), mode='wb'))
-
-    def get_sparse(self, weight):
-        if os.path.exists(self.sparse_filen):
-            logging.info('Loading tensor..')
-            self.sparse_tensor, self.index =  pickle.load(open(
-                self.sparse_filen, mode='rb'))
-        else:
-            logging.info(
-                'Reading association weights from {}..'.format(
-                    self.pmi_df_filen))
-            self.pmi_df = pd.read_csv(
-                self.pmi_df_filen, sep='\t', keep_default_na=False)
-            self.create_sparse(
-                self.pmi_df[self.pmi_df.freq>self.cutoff].copy(), # TODO ?
-                weight)
+            self.tensor_dir, self.sparse_filen), mode='wb'))
 
     def decomp(self, weight, rank):
         logging.info((weight, rank, self.cutoff))
-        decomp_filen = os.path.join(self.subproject_dir, '{}_{}_{}_{}.pkl').format(
-            'ktensor', weight, self.cutoff, rank)
+        decomp_filen = os.path.join(
+            self.tensor_dir, 
+            '{}_{}_{}_{}.pkl').format( 'ktensor', weight, self.cutoff, rank)
         if os.path.exists(decomp_filen):
             logging.warning('File exists')
             return
-        self.sparse_filen = os.path.join(self.subproject_dir, '{}_{}_{}.pkl'.format(
-            'sparstensr', weight, self.cutoff))
+        self.sparse_filen = os.path.join(
+            self.tensor_dir, 
+            '{}_{}_{}.pkl'.format( 'sparstensr', weight, self.cutoff))
         self.get_sparse(weight)
         result = orth_als(self.sparse_tensor, rank)
         pickle.dump(result, open(decomp_filen, mode='wb'))
