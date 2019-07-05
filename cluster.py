@@ -47,21 +47,27 @@ class ClusterVerbs():
     def do_umap(self, n_components):
         if self.ktensor.U[1].shape[1] <= n_components:
             return self.ktensor.U[1]
-        logging.debug('UMAP..')
+        logging.info('UMAP..')
         mapping = umap.UMAP(n_components=n_components, metric=self.metric)
         return mapping.fit_transform(self.ktensor.U[1])
     
     def do_cluster(self):
-        logging.debug('Clustering..')
+        logging.info('Clustering..')
         clusser = hdbscan.HDBSCAN(min_cluster_size=self.min_cluster_size,
                                   min_samples=self.min_samples)
         # min_samples defaults to whatever min_cluster_size is set to
         logging.debug('')
         self.labels = clusser.fit_predict(self.embed_clus)
         plt.scatter(self.embed_visu.T[0], self.embed_visu.T[1], c=self.labels, s=2)
+        n_clusters = len(set(self.labels))
+        if n_clusters < 100: 
+            boundaries = np.arange(n_clusters+1)/(n_clusters+1) 
+        else:
+            boundaries = None
+        plt.colorbar(ticks=boundaries, boundaries=boundaries)                   
 
-    def write_cluters(self, n_clust_show=30, show_size_of=60,
-                      sort_sizes='ascending'):
+    def write_cluters(self, n_clust_show=30, show_size_of=100,
+                      sort_sizes='descending'):
         logging.info('Writing clusters..')
         assert sort_sizes in ['ascending', 'descending', 'rand']
         clus_len_l = [(key, len(list(group))) 
@@ -81,7 +87,7 @@ class ClusterVerbs():
         for cluster_i, clus_len in list(clus_len_l)[:n_clust_show+1]:
             print((cluster_i, clus_len, 
                    [self.index[verb_name].inverse[i] 
-                    for i in np.where(self.labels==cluster_i)[0][:9]]))
+                    for i in sorted(np.where(self.labels==cluster_i)[0])[:9]]))
         print('\n{}'.format(header))
     
     def main(self):
