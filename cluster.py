@@ -27,7 +27,7 @@ from cp_orth import orth_als
 
 
 class ClusterVerbs():
-    def __init__(self, weight='freq', cutoff=2, rank=32, clusser_dim=32,
+    def __init__(self, weight='freq', cutoff=2, rank=32, clusser_dim=10,
                  min_cluster_size=5, min_samples=None, metric='cosine'):
         self.min_cluster_size = min_cluster_size
         self.min_samples = min_samples
@@ -41,13 +41,14 @@ class ClusterVerbs():
         _, self.index = pickle.load(open(os.path.join(
             tensor_dir, 
             'sparstensr_{}_{}.pkl'.format(weight, cutoff)), mode='rb'))
+        logging.info('UMAP for visualization..')
         self.embed_visu = self.do_umap(2)
+        logging.info('UMAP for clustering..') 
         self.embed_clus = self.do_umap(clusser_dim)
 
     def do_umap(self, n_components):
         if self.ktensor.U[1].shape[1] <= n_components:
             return self.ktensor.U[1]
-        logging.info('UMAP..')
         mapping = umap.UMAP(n_components=n_components, metric=self.metric)
         return mapping.fit_transform(self.ktensor.U[1])
     
