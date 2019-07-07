@@ -14,11 +14,12 @@ import pandas as pd
 import logging
 logging.basicConfig(level=logging.DEBUG, format='%(levelname)-8s [%(lineno)d] %(message)s')
 
+part = '0000'
 
 def select_from_conll():
     deps_wanted = ['nsubj', 'ROOT', 'dobj']
     freq = defaultdict(int)
-    for filen in glob.glob('/mnt/permanent/Language/English/Crawl/DepCC/corpus/parsed/part-m-*0.gz'):
+    for filen in glob.glob('/mnt/permanent/Language/English/Crawl/DepCC/corpus/parsed/part-m-*{}.gz'.format(part)):
         logging.info(filen)
         with gzip.open(filen, mode='rt', encoding="utf-8") as infile:
             triple = {}
@@ -55,7 +56,7 @@ freq = select_from_conll()
 df = pd.DataFrame.from_records([triple+tuple([count]) for (triple, count) in freq.items()], 
                           columns=['nsubj', 'ROOT', 'dobj', 'freq']) 
 df = df.sort_values('freq', ascending=False) 
-df.to_csv('/mnt/store/home/makrai/project/verb-tensor/depCC-0.tsv', sep='\t', index=False)
+df.to_csv('/mnt/store/home/makrai/project/verb-tensor/depCC-{}.tsv'.format(part), sep='\t', index=False)
 
 
 # * conllu expects indexing from 1.
