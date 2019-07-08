@@ -83,7 +83,7 @@ class VerbTensor():
         svo_count.to_pickle(self.assoc_df_filen_patt.format('pkl'))
         svo_count.to_csv(self.assoc_df_filen_patt.format('tsv'), sep='\t',
                          index=False, float_format='%.5g')
-        return svo_count, log_total
+        return svo_count
 
     def get_sparse(self):
         if os.path.exists(self.sparse_filen):
@@ -97,29 +97,25 @@ class VerbTensor():
             self.pmi_df = pd.read_pickle(
                 self.assoc_df_filen_patt.format('pkl'))
         else:
-            self.pmi_df, log_total = self.append_pmi()
-        df = self.pmi_df[self.pmi_df.freq>self.cutoff].copy() # TODO later: >=
+            self.pmi_df = self.append_pmi()
+        df = self.pmi_df[self.pmi_df.freq > self.cutoff].copy() # TODO >=
         logging.info('Preparing the index.. (weight={})'.format(self.weight))
-        self.index = {
-            mode: 
-            # TODO 
-            #   * ascending = False
-            #   * use the marginal
-            bidict((-df.groupby(mode)['freq'].sum()).argsort().to_dict())
-            for mode in self.modes}
+        self.index = {}
         for mode in self.modes:
-            # Adding nan as an argument filler to the index..
-            self.index[mode][np.nan] = len(self.index[mode])
-            # Inserting a column for index..
+            #logging.debug(mode)
+            marginal = -df.groupby(mode)['freq'].sum()
+            self.index[mode] = bidict((w, i) for i, w in enumerate(
+                [np.nan] + 
+                list(marginal[marginal.argsort()].index)))
             df['{}_i'.format(mode)] = df[mode].apply(self.index[mode].get)
-        logging.debug('Creating tensor..')
+        logging.debug('Creating tensor (1/3)..')
         coords = df[['{}_i'.format(mode)
                      for mode in self.modes]].T.to_records(index=False)
-        logging.debug('')
+        logging.debug('Creating tensor (2/3)..')
         coords = tuple(map(list, coords))
         data = df[self.weight].values
         shape=tuple(len(self.index[mode]) for mode in self.modes)
-        logging.info(shape)
+        logging.debug('Creating tensor (3/3) {}..'.format(shape))
         self.sparse_tensor = sktensor.sptensor(coords, data, shape=shape)
         pickle.dump((self.sparse_tensor, self.index), open(os.path.join(
             self.tensor_dir, self.sparse_filen), mode='wb'))
@@ -156,9 +152,4 @@ if __name__ == '__main__':
     args = parse_args()
     decomposer = VerbTensor(weight=args.weight, cutoff=args.cutoff,
                             rank=args.rank)
-    for exp in range(1,8):
-        decomposer.rank = 2**exp
-        try:
-            decomposer.decomp()
-        except Exception as e:
-            logging.warning(e)
+    decomposer.decomp()
