@@ -11,7 +11,6 @@ import pandas as pd
 import pickle
 import lzma
 
-from conllu import parse, parse_incr
 import numpy as np
 from cp_orth import orth_als
 import sktensor
