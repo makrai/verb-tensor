@@ -21,11 +21,8 @@ logging.basicConfig(level=logging.DEBUG,
         format='%(levelname)-8s [%(lineno)d] %(message)s')
 
 class VerbTensor():
-    def __init__(self, weight, cutoff, rank):
-        self.weight = weight
-        self.cutoff = cutoff
-        self.rank = rank
-        self.project_dir = '/mnt/store/home/makrai/project/verb-tensor/'
+    def __init__(self):
+        self.project_dir = '/mnt/store/home/makrai/project/verb-tensor/just_svo'
         self.tensor_dir = os.path.join(self.project_dir, 'depCC')
         self.assoc_df_filen_patt = os.path.join(self.project_dir,
                                                 'dataframe/depCC/assoc0.{}')
@@ -62,18 +59,23 @@ class VerbTensor():
             # Computing
             #   * log-probabilities  or 1- and 2-marginals and (log_)freq
             #   * logarithm in Dice
-            # TODO cutoff == -1 -> log(0)
+            # TODO cutoff == 0 -> log(0)
             svo_count[name] = np.log2(svo_count[name]) 
             if name != 'log_dice':
                 svo_count[name] -= log_total
         svo_count['pmi'] = svo_count.log_freq
+        logging.debug(svo_count.pmi.head())
         svo_count['iact_info'] = -svo_count.log_freq
         for mode in self.modes:
             svo_count.pmi -= svo_count['freq_{}'.format(mode)]
             svo_count.iact_info += svo_count['freq_{}'.format(mode)]
+        logging.debug(svo_count.pmi.head())
         for mode_pair in itertools.combinations(self.modes, 2):
             svo_count.iact_info -= svo_count['freq_{}'.format(mode_pair)]
-        svo_count.pmi = np.max(svo_count.pmi, 0)
+        logging.debug(svo_count.pmi.head())
+        svo_count['0'] = 0
+        svo_count.pmi = svo_count[['pmi', '0']].max(axis=1)
+        logging.debug(svo_count.pmi.head())
         svo_count.iact_info = np.max(svo_count.iact_info, 0) 
         # TODO Interpretation of positive pointwise interaction information
         logging.info('Computing salience..')
@@ -85,7 +87,7 @@ class VerbTensor():
                          index=False, float_format='%.5g')
         return svo_count
 
-    def get_sparse(self):
+    def get_sparse(self, weight, cutoff):
         if os.path.exists(self.sparse_filen):
             logging.info('Loading tensor..')
             self.sparse_tensor, self.index =  pickle.load(open(
@@ -98,11 +100,10 @@ class VerbTensor():
                 self.assoc_df_filen_patt.format('pkl'))
         else:
             self.pmi_df = self.append_pmi()
-        df = self.pmi_df[self.pmi_df.freq > self.cutoff].copy() # TODO >=
-        logging.info('Preparing the index.. (weight={})'.format(self.weight))
+        df = self.pmi_df[self.pmi_df.freq >= cutoff].copy()
+        logging.info('Preparing the index.. (weight={})'.format(weight))
         self.index = {}
         for mode in self.modes:
-            #logging.debug(mode)
             marginal = -df.groupby(mode)['freq'].sum()
             self.index[mode] = bidict((w, i) for i, w in enumerate(
                 [np.nan] + 
@@ -113,28 +114,30 @@ class VerbTensor():
                      for mode in self.modes]].T.to_records(index=False)
         logging.debug('Creating tensor (2/3)..')
         coords = tuple(map(list, coords))
-        data = df[self.weight].values
+        data = df[weight].values
         shape=tuple(len(self.index[mode]) for mode in self.modes)
         logging.debug('Creating tensor (3/3) {}..'.format(shape))
         self.sparse_tensor = sktensor.sptensor(coords, data, shape=shape)
         pickle.dump((self.sparse_tensor, self.index), open(os.path.join(
             self.tensor_dir, self.sparse_filen), mode='wb'))
 
-    def decomp(self):
-        logging.info((self.weight, self.rank, self.cutoff))
+    def decomp(self, weight, cutoff, rank):
+        if cutoff == 0:
+            logging.warning('Not implemented, log(0)=?')
+        logging.info((weight, rank, cutoff))
         decomp_filen = os.path.join(
             self.tensor_dir, 
-            '{}_{}_{}_{}.pkl').format('ktensor', self.weight, self.cutoff,
-                                      self.rank)
+            '{}_{}_{}_{}.pkl').format('ktensor', weight, cutoff,
+                                      rank)
         if os.path.exists(decomp_filen):
             logging.warning('File exists')
             return
         self.sparse_filen = os.path.join(
             self.tensor_dir, 
-            '{}_{}_{}.pkl'.format( 'sparstensr', self.weight, self.cutoff))
-        self.get_sparse()
+            '{}_{}_{}.pkl'.format( 'sparstensr', weight, cutoff))
+        self.get_sparse(weight, cutoff)
         logging.debug('Orth-ALS..') 
-        result = orth_als(self.sparse_tensor, self.rank)
+        result = orth_als(self.sparse_tensor, rank)
         pickle.dump(result, open(decomp_filen, mode='wb'))
 
 
@@ -150,6 +153,6 @@ def parse_args():
 
 if __name__ == '__main__':
     args = parse_args()
-    decomposer = VerbTensor(weight=args.weight, cutoff=args.cutoff,
+    decomposer = VerbTensor()
+    decomposer.decomp(weight=args.weight, cutoff=args.cutoff,
                             rank=args.rank)
-    decomposer.decomp()
