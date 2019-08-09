@@ -14,9 +14,9 @@ import pandas as pd
 import logging
 logging.basicConfig(level=logging.DEBUG, format='%(levelname)-8s [%(lineno)d] %(message)s')
 
-part = '0000'
 
-def select_from_conll():
+
+def select_from_conll(part=''):
     deps_wanted = ['nsubj', 'ROOT', 'dobj']
     freq = defaultdict(int)
     for filen in glob.glob('/mnt/permanent/Language/English/Crawl/DepCC/corpus/parsed/part-m-*{}.gz'.format(part)):
@@ -25,7 +25,7 @@ def select_from_conll():
             triple = {}
             argument_clash = False
             for i, line in enumerate(infile):
-                if False:#not i % 10000000:
+                if not i % 10000000:
                     logging.debug((i, len(freq)))
                 line = line.strip()
                 if line.startswith('#'):
@@ -33,7 +33,9 @@ def select_from_conll():
                         if dep not in triple:
                             break
                     else:
-                        if not argument_clash:
+                        if (not argument_clash and 
+                                set(triple.keys()) == set(['nsubj', 'ROOT',
+                                                           'dobj', 'punct'])):
                             freq[(triple['nsubj'], triple['ROOT'], triple['dobj'])] += 1
                     sentence = []
                     triple = {}
@@ -43,20 +45,23 @@ def select_from_conll():
                     continue
                 id_, form, lemma, upostag, xpostag, feats, head, deprel, deps, ner = line.split('\t')
                 sentence.append(form)
-                if deprel in deps_wanted and int(head)==1:
+                if int(head)==1:
                     if deprel in triple:
                         #logging.warning('Multiple {}s: {}\n{}'.format(deprel, triple, ' '.join(sentence)))
                         argument_clash = True
                     triple[deprel] = lemma
-                #logging.debug((triple, argument_clash, form))
-    return freq
+                #logging.debug((triple, argument_clash, form)) 
+        df = pd.DataFrame.from_records(
+            [triple+tuple([count]) for (triple, count) in freq.items()], 
+            columns=['nsubj', 'ROOT', 'dobj', 'freq']) 
+        df = df.sort_values('freq', ascending=False) 
+        df.to_csv('/mnt/store/home/makrai/project/verb-tensor/just_svo/depCC-{}.tsv'.format(part),
+                  sep='\t', index=False)
+    return df
 
 
-freq = select_from_conll() 
-df = pd.DataFrame.from_records([triple+tuple([count]) for (triple, count) in freq.items()], 
-                          columns=['nsubj', 'ROOT', 'dobj', 'freq']) 
-df = df.sort_values('freq', ascending=False) 
-df.to_csv('/mnt/store/home/makrai/project/verb-tensor/depCC-{}.tsv'.format(part), sep='\t', index=False)
+if __name__ == '__main__':
+    select_from_conll()
 
 
 # * conllu expects indexing from 1.
