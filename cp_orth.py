@@ -149,7 +149,9 @@ def orth_als(X, rank, **kwargs):
     N = X.ndim
     normX = norm(X)
 
+    logging.info('')
     U = _init(ainit, X, N, rank, dtype)
+    logging.info('')
     fit = 0
     exectimes = []
     for itr in range(maxiter):
