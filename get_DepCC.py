@@ -55,7 +55,7 @@ def select_from_conll(part=''):
             [triple+tuple([count]) for (triple, count) in freq.items()], 
             columns=['nsubj', 'ROOT', 'dobj', 'freq']) 
         df = df.sort_values('freq', ascending=False) 
-        df.to_csv('/mnt/store/home/makrai/project/verb-tensor/just_svo/depCC-{}.tsv'.format(part),
+        df.to_csv('/mnt/permanent/home/makrai/project/verb-tensor/just_svo/dataframe/depCC/freq.tsv'.format(part),
                   sep='\t', index=False)
     return df
 
