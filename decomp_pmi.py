@@ -30,9 +30,9 @@ class VerbTensor():
 
     def append_pmi(self):
         filen = os.path.join(self.project_dir, 'dataframe/depCC/freq0.tsv')
-        logging.info('Readding freq counts from {}'.format(filen))
+        logging.info('Reading freqs from {}'.format(filen))
         svo_count = pd.read_csv(filen, sep='\t', keep_default_na=False)
-        logging.info('Computing marginals (1/2)..')
+        logging.info('Computing marginals..')
         marginal = {mode: svo_count.groupby(mode).sum() for mode in self.modes}
         marginal2 = {mode_pair: svo_count.groupby(list(mode_pair)).sum()
                  for mode_pair in itertools.combinations(self.modes, 2)}
@@ -63,19 +63,16 @@ class VerbTensor():
             if name != 'log_dice':
                 svo_count[name] -= log_total
         svo_count['pmi'] = svo_count.log_freq
-        logging.debug(svo_count.pmi.head())
         svo_count['iact_info'] = -svo_count.log_freq
         for mode in self.modes:
             svo_count.pmi -= svo_count['freq_{}'.format(mode)]
             svo_count.iact_info += svo_count['freq_{}'.format(mode)]
-        logging.debug(svo_count.pmi.head())
         for mode_pair in itertools.combinations(self.modes, 2):
             svo_count.iact_info -= svo_count['freq_{}'.format(mode_pair)]
-        logging.debug(svo_count.pmi.head())
         svo_count['0'] = 0
         svo_count.pmi = svo_count[['pmi', '0']].max(axis=1)
-        logging.debug(svo_count.pmi.head())
-        svo_count.iact_info = np.max(svo_count.iact_info, 0) 
+        svo_count.iact_info = svo_count[['iact_info', '0']].max(axis=1)
+        del svo_count['0']
         # TODO Interpretation of positive pointwise interaction information
         logging.info('Computing salience..')
         svo_count['salience'] = svo_count.pmi * svo_count.log_freq
@@ -145,7 +142,8 @@ def parse_args():
         description='Decompose a tensor of verb and argument cooccurrences')
     parser.add_argument(
         '--weight', default='log_freq', 
-        help="['log_freq', 'pmi', 'iact_info', 'salience', 'iact_sali', 'log_dice']")
+        help="['log_freq', 'pmi', 'iact_info', 'salience', 'iact_sali', "
+        "'log_dice']")
     parser.add_argument('--cutoff', type=int, default=2)
     parser.add_argument('--rank', type=int, default=64)
     return parser.parse_args()
@@ -153,5 +151,12 @@ def parse_args():
 if __name__ == '__main__':
     args = parse_args()
     decomposer = VerbTensor()
-    decomposer.decomp(weight=args.weight, cutoff=args.cutoff,
-                            rank=args.rank)
+    #decomposer.decomp(weight=args.weight, cutoff=args.cutoff, rank=args.rank)
+    for cutoff_exp in range(11, 0, -1):
+        for rank_exp in range(1, 9):
+            for weight in ['log_freq', 'pmi', 'iact_info', 'salience', 'iact_sali', 'log_dice']:
+                try:
+                    decomposer.decomp(weight=weight, cutoff=2**cutoff_exp,
+                                      rank=2**rank_exp)
+                except Exception as e:
+                    logging.warning(e)
