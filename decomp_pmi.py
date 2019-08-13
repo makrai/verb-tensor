@@ -153,7 +153,7 @@ if __name__ == '__main__':
     decomposer = VerbTensor()
     #decomposer.decomp(weight=args.weight, cutoff=args.cutoff, rank=args.rank)
     for cutoff_exp in range(11, 0, -1):
-        for rank_exp in range(1, 9):
+        for rank_exp in range(1, 5):
             for weight in ['log_freq', 'pmi', 'iact_info', 'salience', 'iact_sali', 'log_dice']:
                 try:
                     decomposer.decomp(weight=weight, cutoff=2**cutoff_exp,
