@@ -8,8 +8,8 @@ import gzip
 import os
 import pandas as pd
 import pickle
+import sys
 
-import pandas as pd
 
 import logging
 logging.basicConfig(level=logging.DEBUG, format='%(levelname)-8s [%(lineno)d] %(message)s')
@@ -17,51 +17,49 @@ logging.basicConfig(level=logging.DEBUG, format='%(levelname)-8s [%(lineno)d] %(
 
 
 def select_from_conll(part=''):
-    deps_wanted = ['nsubj', 'ROOT', 'dobj']
+    deps_wanted = set(['nsubj', 'ROOT', 'dobj', 'punct'])
     freq = defaultdict(int)
     for filen in glob.glob('/mnt/permanent/Language/English/Crawl/DepCC/corpus/parsed/part-m-*{}.gz'.format(part)):
         logging.info(filen)
         with gzip.open(filen, mode='rt', encoding="utf-8") as infile:
             triple = {}
-            argument_clash = False
+            sentence_is_clean = True
             for i, line in enumerate(infile):
-                if not i % 10000000:
+                if i and not i % 10000000:
                     logging.debug((i, len(freq)))
                 line = line.strip()
                 if line.startswith('#'):
-                    for dep in deps_wanted:
-                        if dep not in triple:
-                            break
-                    else:
-                        if (not argument_clash and 
-                                set(triple.keys()) == set(['nsubj', 'ROOT',
-                                                           'dobj', 'punct'])):
-                            freq[(triple['nsubj'], triple['ROOT'], triple['dobj'])] += 1
+                    # Finishes sentence and inits next.
+                    if sentence_is_clean and triple.keys() == deps_wanted:
+                        freq[(triple['nsubj'], triple['ROOT'], triple['dobj'])] += 1
                     sentence = []
                     triple = {}
-                    argument_clash = False
+                    sentence_is_clean = True
                     continue
-                if not line:
+                elif not line:
+                    continue
+                elif not sentence_is_clean:
                     continue
                 id_, form, lemma, upostag, xpostag, feats, head, deprel, deps, ner = line.split('\t')
                 sentence.append(form)
-                if int(head)==1:
-                    if deprel in triple:
-                        #logging.warning('Multiple {}s: {}\n{}'.format(deprel, triple, ' '.join(sentence)))
-                        argument_clash = True
-                    triple[deprel] = lemma
-                #logging.debug((triple, argument_clash, form)) 
+                if int(head) == 1:
+                    if deprel in deps_wanted:
+                        if deprel in triple:
+                            sentence_is_clean = False
+                        else:
+                            triple[deprel] = lemma
+                    else:
+                        sentence_is_clean = False
         df = pd.DataFrame.from_records(
-            [triple+tuple([count]) for (triple, count) in freq.items()], 
+            [triple + tuple([count]) for (triple, count) in freq.items()], 
             columns=['nsubj', 'ROOT', 'dobj', 'freq']) 
         df = df.sort_values('freq', ascending=False) 
-        df.to_csv('/mnt/permanent/home/makrai/project/verb-tensor/just_svo/dataframe/depCC/freq.tsv'.format(part),
-                  sep='\t', index=False)
+        df.to_pickle('/mnt/permanent/home/makrai/project/verb-tensor/just_svo/dataframe/depCC/freq{}.pkl'.format(part))
     return df
 
 
 if __name__ == '__main__':
-    select_from_conll()
+    select_from_conll(part=sys.argv[1])
 
 
 # * conllu expects indexing from 1.
