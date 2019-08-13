@@ -17,6 +17,10 @@ logging.basicConfig(level=logging.DEBUG, format='%(levelname)-8s [%(lineno)d] %(
 
 
 def select_from_conll(part=''):
+    """
+    Collects frequencies of subj, verb, dobj triples in depCC.
+    Sencentes with top dependencies other than these and punct are disregarded.
+    """
     deps_wanted = set(['nsubj', 'ROOT', 'dobj', 'punct'])
     freq = defaultdict(int)
     for filen in glob.glob('/mnt/permanent/Language/English/Crawl/DepCC/corpus/parsed/part-m-*{}.gz'.format(part)):
@@ -32,7 +36,6 @@ def select_from_conll(part=''):
                     # Finishes sentence and inits next.
                     if sentence_is_clean and triple.keys() == deps_wanted:
                         freq[(triple['nsubj'], triple['ROOT'], triple['dobj'])] += 1
-                    sentence = []
                     triple = {}
                     sentence_is_clean = True
                     continue
@@ -41,7 +44,6 @@ def select_from_conll(part=''):
                 elif not sentence_is_clean:
                     continue
                 id_, form, lemma, upostag, xpostag, feats, head, deprel, deps, ner = line.split('\t')
-                sentence.append(form)
                 if int(head) == 1:
                     if deprel in deps_wanted:
                         if deprel in triple:
