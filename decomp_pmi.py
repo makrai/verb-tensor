@@ -9,15 +9,13 @@ import itertools
 import os
 import pandas as pd
 import pickle
+import logging
 import lzma
 
 import numpy as np
 from cp_orth import orth_als
 import sktensor
 
-import logging
-logging.basicConfig(level=logging.DEBUG,
-        format='%(levelname)-8s [%(lineno)d] %(message)s')
 
 class VerbTensor():
     def __init__(self):
@@ -149,14 +147,15 @@ def parse_args():
     return parser.parse_args()
 
 if __name__ == '__main__':
+    logging.basicConfig(level=logging.DEBUG,
+                        format='%(levelname)-8s [%(lineno)d] %(message)s')
     args = parse_args()
     decomposer = VerbTensor()
     #decomposer.decomp(weight=args.weight, cutoff=args.cutoff, rank=args.rank)
-    for cutoff_exp in range(11, 0, -1):
-        for rank_exp in range(1, 5):
-            for weight in ['log_freq', 'pmi', 'iact_info', 'salience', 'iact_sali', 'log_dice']:
-                try:
-                    decomposer.decomp(weight=weight, cutoff=2**cutoff_exp,
-                                      rank=2**rank_exp)
-                except Exception as e:
-                    logging.warning(e)
+    for rank_exp in range(1, 9):
+        for weight in ['log_freq', 'pmi', 'iact_info', 'salience', 'iact_sali',
+                       'log_dice']:
+            try:
+                decomposer.decomp(weight=weight, cutoff=2, rank=2**rank_exp)
+            except Exception as e:
+                logging.warning(e)
