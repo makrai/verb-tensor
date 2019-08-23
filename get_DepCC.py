@@ -61,7 +61,10 @@ def select_from_conll(part=''):
 
 
 if __name__ == '__main__':
-    select_from_conll(part=sys.argv[1])
+    if len(sys.argv) > 1: 
+        select_from_conll(part=sys.argv[1])
+    else:
+        select_from_conll()
 
 
 # * conllu expects indexing from 1.
