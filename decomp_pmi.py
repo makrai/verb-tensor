@@ -20,16 +20,16 @@ import sktensor
 class VerbTensor():
     def __init__(self, input_part):
         self.part = input_part
-        self.project_dir = '/mnt/store/home/makrai/project/verb-tensor/just_svo'
-        self.tensor_dir = os.path.join(self.project_dir, 'depCC')
+        self.project_dir = '/mnt/permanent/home/makrai/project/verb-tensor/top_level'
+        self.tensor_dir = os.path.join(self.project_dir, 'tensor')
         self.assoc_df_filen_patt = os.path.join(self.project_dir,
-                                                'dataframe/depCC/assoc{}.{}')
+                                                'dataframe/assoc{}.{}')
         self.modes = ['nsubj', 'ROOT', 'dobj']
         # mazsola: ['NOM', 'stem', 'ACC']
 
     def append_pmi(self):
         filen = os.path.join(self.project_dir,
-                             'dataframe/depCC/freq{}.pkl'.format(self.part))
+                             'dataframe/freq{}.pkl'.format(self.part))
         logging.info('Reading freqs from {}'.format(filen))
         svo_count = pd.read_pickle(filen)
         logging.info('Computing marginals..')
@@ -91,8 +91,8 @@ class VerbTensor():
                 self.sparse_filen, mode='rb'))
             return
         if os.path.exists(self.assoc_df_filen_patt.format(self.part, 'pkl')):
-            logging.info('Reading association weights from {}..'.format(
-                self.assoc_df_filen_patt.format(self.part)))
+            logging.info('Reading association weights from {} {}..'.format(
+                self.assoc_df_filen_patt, self.part))
             self.pmi_df = pd.read_pickle(
                 self.assoc_df_filen_patt.format(self.part, 'pkl'))
         else:
@@ -154,12 +154,13 @@ if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG,
                         format='%(levelname)-8s [%(lineno)d] %(message)s')
     args = parse_args()
-    decomposer = VerbTensor(alrgs.input_part)
-    #decomposer.decomp(weight=args.weight, cutoff=args.cutoff, rank=args.rank)
+    decomposer = VerbTensor(args.input_part)
     for rank_exp in range(1, 9):
-        for weight in ['log_freq', 'pmi', 'iact_info', 'salience', 'iact_sali',
-                       'log_dice']:
-            try:
-                decomposer.decomp(weight=weight, cutoff=2, rank=2**rank_exp)
-            except Exception as e:
-                logging.warning(e)
+        args.rank = 2**rank_exp
+        decomposer.decomp(weight=args.weight, cutoff=args.cutoff, rank=args.rank)
+    #for weight in ['log_freq', 'pmi', 'iact_info', 'salience', 'iact_sali',
+    #'log_dice']:
+    #try:
+    #decomposer.decomp(weight=weight, cutoff=2, rank=2**rank_exp)
+    #except Exception as e:
+    #logging.warning(e)
