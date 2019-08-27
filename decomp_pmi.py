@@ -27,24 +27,48 @@ class VerbTensor():
         self.modes = ['nsubj', 'ROOT', 'dobj']
         # mazsola: ['NOM', 'stem', 'ACC']
 
-    def append_pmi(self):
-        filen = os.path.join(self.project_dir,
-                             'dataframe/freq{}.pkl'.format(self.part))
+    def append_pmi(self, write_tsv=False):
+        filen = os.path.join(self.project_dir, 'dataframe/freq{}.pkl'.format(
+            self.part))
         logging.info('Reading freqs from {}'.format(filen))
         svo_count = pd.read_pickle(filen)
         logging.info('Computing marginals..')
         marginal = {mode: svo_count.groupby(mode).sum() for mode in self.modes}
         marginal2 = {mode_pair: svo_count.groupby(list(mode_pair)).sum()
-                 for mode_pair in itertools.combinations(self.modes, 2)}
+                     for mode_pair in itertools.combinations(self.modes, 2)}
         for mode in self.modes:
-            svo_count = svo_count.join(marginal[mode], on=mode,
-                    rsuffix='_{}'.format(mode))
+            svo_count = svo_count.join(marginal[mode], on=mode, 
+                                       rsuffix='_{}'.format(mode))
         for mode_pair in itertools.combinations(self.modes, 2):
-            logging.debug(mode_pair)
+            #logging.debug(mode_pair)
             svo_count = svo_count.join(marginal2[mode_pair], on=mode_pair,
-                    rsuffix='_{}'.format(mode_pair))
-        logging.info('Computing Dice..')
-        svo_count['log_freq'] = svo_count.freq
+                                       rsuffix='_{}'.format(mode_pair))
+        logging.info('Computing association scores..')
+        log_total = np.log2(svo_count.freq.sum())
+        i_marginal_start = 1 if len(self.part) <= 2 else 4
+        for name in svo_count.columns[i_marginal_start:]:
+            # Computing log-probabilities  or 1- and 2-marginals
+            # TODO cutoff == 0 -> log(0)
+            svo_count['log_prob_{}'.format(name)] = np.log2(svo_count[name])
+            svo_count['log_prob_{}'.format(name)] -= log_total
+        svo_count['log_freq'] = np.log2(svo_count.freq)
+        svo_count['log_prob'] = svo_count.log_freq - log_total
+        svo_count['pmi'] = svo_count.log_prob
+        svo_count['iact_info'] = -svo_count.log_prob
+        for mode in self.modes:
+            svo_count.pmi -= svo_count['log_prob_freq_{}'.format(mode)]
+            svo_count.iact_info += svo_count['log_prob_freq_{}'.format(mode)]
+        for mode_pair in itertools.combinations(self.modes, 2):
+            svo_count.iact_info -= svo_count['log_prob_freq_{}'.format(mode_pair)]
+        svo_count['0'] = 0
+        svo_count.pmi = svo_count[['pmi', '0']].max(axis=1)
+        svo_count.iact_info = svo_count[['iact_info', '0']].max(axis=1)
+        del svo_count['0']
+        # TODO Interpretation of positive pointwise interaction information
+        #logging.debug('Computing salience..')
+        svo_count['salience'] = svo_count.pmi * svo_count.log_freq
+        svo_count['iact_sali'] = svo_count.iact_info * svo_count.log_freq
+        #logging.debug('Computing Dice..')
         svo_count['log_dice'] = 3 * svo_count.freq
         # This is only the numerator of Dice, and no logarithm at this point.
         svo_count['dice_denom'] = 0
@@ -52,36 +76,14 @@ class VerbTensor():
             svo_count.dice_denom += svo_count['freq_{}'.format(mode)]
         svo_count.log_dice /= svo_count.dice_denom
         del svo_count['dice_denom']
-        logging.info('Computing PMI variants..')
-        log_total = np.log2(svo_count.freq.sum())
-        for name in svo_count.columns[4:]:
-            # Computing
-            #   * log-probabilities  or 1- and 2-marginals and (log_)freq
-            #   * logarithm in Dice
-            # TODO cutoff == 0 -> log(0)
-            svo_count[name] = np.log2(svo_count[name])
-            if name != 'log_dice':
-                svo_count[name] -= log_total
-        svo_count['pmi'] = svo_count.log_freq
-        svo_count['iact_info'] = -svo_count.log_freq
-        for mode in self.modes:
-            svo_count.pmi -= svo_count['freq_{}'.format(mode)]
-            svo_count.iact_info += svo_count['freq_{}'.format(mode)]
-        for mode_pair in itertools.combinations(self.modes, 2):
-            svo_count.iact_info -= svo_count['freq_{}'.format(mode_pair)]
-        svo_count['0'] = 0
-        svo_count.pmi = svo_count[['pmi', '0']].max(axis=1)
-        svo_count.iact_info = svo_count[['iact_info', '0']].max(axis=1)
-        del svo_count['0']
-        # TODO Interpretation of positive pointwise interaction information
-        logging.info('Computing salience..')
-        svo_count['salience'] = svo_count.pmi * svo_count.log_freq
-        svo_count['iact_sali'] = svo_count.iact_info * svo_count.log_freq
+        svo_count.log_dice = np.log2(svo_count.log_dice) 
+        svo_count.log_dice += svo_count.log_dice.min()
         logging.info('Saving to {}{}..'.format(self.assoc_df_filen_patt,
                                                self.part))
         svo_count.to_pickle(self.assoc_df_filen_patt.format(self.part, 'pkl'))
-        svo_count.to_csv(self.assoc_df_filen_patt.format(self.part, 'tsv'),
-                         sep='\t', index=False, float_format='%.5g')
+        if write_tsv:
+            svo_count.to_csv(self.assoc_df_filen_patt.format(self.part, 'tsv'),
+                             sep='\t', index=False, float_format='%.5g')
         return svo_count
 
     def get_sparse(self, weight, cutoff):
@@ -97,6 +99,7 @@ class VerbTensor():
                 self.assoc_df_filen_patt.format(self.part, 'pkl'))
         else:
             self.pmi_df = self.append_pmi()
+        self.pmi_df = self.pmi_df.reset_index()
         df = self.pmi_df[self.pmi_df.freq >= cutoff].copy()
         logging.info('Preparing the index.. (weight={})'.format(weight))
         self.index = {}
@@ -157,10 +160,7 @@ if __name__ == '__main__':
     decomposer = VerbTensor(args.input_part)
     for rank_exp in range(1, 9):
         args.rank = 2**rank_exp
-        decomposer.decomp(weight=args.weight, cutoff=args.cutoff, rank=args.rank)
-    #for weight in ['log_freq', 'pmi', 'iact_info', 'salience', 'iact_sali',
-    #'log_dice']:
-    #try:
-    #decomposer.decomp(weight=weight, cutoff=2, rank=2**rank_exp)
-    #except Exception as e:
-    #logging.warning(e)
+        #decomposer.decomp(weight=args.weight, cutoff=args.cutoff, rank=args.rank)
+        #for weight in [ 'log_freq', 'pmi', 'iact_info', 'salience',
+        #'iact_sali', 'log_dice']:
+        decomposer.decomp(weight='iact_sali', cutoff=1, rank=2**rank_exp)
