@@ -16,7 +16,7 @@ logging.basicConfig(level=logging.DEBUG, format='%(levelname)-8s [%(lineno)d] %(
 def select_from_conll(part=''):
     """
     Collects frequencies of subj, verb, dobj triples from depCC.
-    Sencentes including top dependencies other than these and punct are
+    Sencentes including top dependencies other than these (and punct) are
     disregarded.
     """
     columns = ['id', 'form', 'lemma', 'upos', 'xpos', 'feats', 'head_',
@@ -47,8 +47,11 @@ def select_from_conll(part=''):
                         freq[(triple['nsubj'], triple['ROOT'], triple['dobj'])] += 1
                         n_sents += 1
                         if not n_sents % 1000: 
-                            logging.debug((i, sorted(
-                                freq.items(), key=lambda item: -item[1])[:4]))
+                            logging.debug((
+                                i, 
+                                sorted(freq.items(), 
+                                       key=lambda item: -item[1])[:4]))
+                                #triple))
                     lines = []
                     triple = {}
         df = pd.DataFrame.from_records(
