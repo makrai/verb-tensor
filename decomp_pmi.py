@@ -77,7 +77,8 @@ class VerbTensor():
         svo_count.log_dice /= svo_count.dice_denom
         del svo_count['dice_denom']
         svo_count.log_dice = np.log2(svo_count.log_dice) 
-        svo_count.log_dice += svo_count.log_dice.min()
+        svo_count.log_dice -= svo_count.log_dice.min()
+        svo_count['dice_sali'] = svo_count.log_dice * svo_count.log_freq
         logging.info('Saving to {}{}..'.format(self.assoc_df_filen_patt,
                                                self.part))
         svo_count.to_pickle(self.assoc_df_filen_patt.format(self.part, 'pkl'))
@@ -161,6 +162,6 @@ if __name__ == '__main__':
     for rank_exp in range(1, 9):
         args.rank = 2**rank_exp
         #decomposer.decomp(weight=args.weight, cutoff=args.cutoff, rank=args.rank)
-        #for weight in [ 'log_freq', 'pmi', 'iact_info', 'salience',
-        #'iact_sali', 'log_dice']:
-        decomposer.decomp(weight='iact_sali', cutoff=1, rank=2**rank_exp)
+        for weight in [ 'log_freq', 'pmi', 'iact_info', 'salience',
+                       'iact_sali', 'log_dice', 'dice_sali']:
+            decomposer.decomp(weight=weight, cutoff=2, rank=2**rank_exp)
