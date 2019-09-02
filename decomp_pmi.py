@@ -21,7 +21,7 @@ class VerbTensor():
     def __init__(self, input_part):
         self.part = input_part
         self.project_dir = '/mnt/permanent/home/makrai/project/verb-tensor/top_level'
-        self.tensor_dir = os.path.join(self.project_dir, 'tensor')
+        self.tensor_dir = os.path.join(self.project_dir, 'tensor', self.part)
         self.assoc_df_filen_patt = os.path.join(self.project_dir,
                                                 'dataframe/assoc{}.{}')
         self.modes = ['nsubj', 'ROOT', 'dobj']
@@ -40,7 +40,7 @@ class VerbTensor():
             svo_count = svo_count.join(marginal[mode], on=mode, 
                                        rsuffix='_{}'.format(mode))
         for mode_pair in itertools.combinations(self.modes, 2):
-            #logging.debug(mode_pair)
+            logging.debug(mode_pair)
             svo_count = svo_count.join(marginal2[mode_pair], on=mode_pair,
                                        rsuffix='_{}'.format(mode_pair))
         logging.info('Computing association scores..')
@@ -159,9 +159,9 @@ if __name__ == '__main__':
                         format='%(levelname)-8s [%(lineno)d] %(message)s')
     args = parse_args()
     decomposer = VerbTensor(args.input_part)
+    #decomposer.decomp(weight=args.weight, cutoff=args.cutoff, rank=args.rank)
     for rank_exp in range(1, 9):
         args.rank = 2**rank_exp
-        #decomposer.decomp(weight=args.weight, cutoff=args.cutoff, rank=args.rank)
         for weight in [ 'log_freq', 'pmi', 'iact_info', 'salience',
                        'iact_sali', 'log_dice', 'dice_sali']:
             decomposer.decomp(weight=weight, cutoff=2, rank=2**rank_exp)
