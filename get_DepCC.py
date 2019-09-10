@@ -43,13 +43,13 @@ def select_from_conll(part=''):
                     if (set(top_df.deprel) == deps_wanted and
                             len(top_df.deprel) == 4):
                         for _, series in top_df.iterrows():
-                            triple[series.deprel] = series.lemma 
+                            triple[series.deprel] = series.lemma
                         freq[(triple['nsubj'], triple['ROOT'], triple['dobj'])] += 1
                         n_sents += 1
-                        if not n_sents % 1000: 
+                        if not n_sents % 10000:
                             logging.debug((
-                                i, 
-                                sorted(freq.items(), 
+                                i,
+                                sorted(freq.items(),
                                        key=lambda item: -item[1])[:4]))
                                 #triple))
                     lines = []
