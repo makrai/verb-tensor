@@ -160,8 +160,8 @@ if __name__ == '__main__':
     args = parse_args()
     decomposer = VerbTensor(args.input_part)
     #decomposer.decomp(weight=args.weight, cutoff=args.cutoff, rank=args.rank)
-    for rank_exp in range(1, 9):
+    for rank_exp in range(1, 10):
         args.rank = 2**rank_exp
-        for weight in [ 'log_freq', 'pmi', 'iact_info', 'salience',
+        for weight in ['log_freq', 'pmi', 'iact_info', 'salience',
                        'iact_sali', 'log_dice', 'dice_sali']:
             decomposer.decomp(weight=weight, cutoff=2, rank=2**rank_exp)
