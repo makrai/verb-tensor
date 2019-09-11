@@ -19,7 +19,6 @@ def sum_frames(trailing_zeros='00'):
     filen = os.path.join(df_dir, 'freq0{}.pkl').format(trailing_zeros)
     logging.info(filen)
     df = pd.read_pickle(filen).reset_index().set_index(['nsubj', 'ROOT', 'dobj'])#
-    logging.debug(df.head(1))
     for i in range(1, 10):
         filen = os.path.join(df_dir, 'freq{}{}.pkl').format(i, trailing_zeros)
         logging.info(filen)
