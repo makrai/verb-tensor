@@ -10,24 +10,27 @@ import pickle
 import sys
 
 import logging
-logging.basicConfig(level=logging.DEBUG, format='%(levelname)-8s [%(lineno)d] %(message)s')
+logging.basicConfig(
+    level=logging.DEBUG, 
+    format='%(levelname)-8s [%(lineno)d] %(message)s')
 
 
 def select_from_conll(part=''):
     """
-    Collects frequencies of subj, verb, dobj triples from depCC.
-    Sencentes including top dependencies other than these (and punct) are
-    disregarded.
+    Collects frequencies of subj, verb, dobj triples from depCC, 
+    including sencentes with top dependencies other than these.
     """
     columns = ['id', 'form', 'lemma', 'upos', 'xpos', 'feats', 'head_',
                'deprel', 'deps', 'ner']
-    deps_wanted = set(['nsubj', 'ROOT', 'dobj', 'punct'])
+    deps_wanted = set(['nsubj', 'ROOT', 'dobj'])
     freq = defaultdict(int)
-    for filen in glob.glob('/mnt/permanent/Language/English/Crawl/DepCC/corpus/parsed/part-m-*{}.gz'.format(part)):
+    depcc_dir = '/mnt/permanent/Language/English/Crawl/DepCC/corpus/parsed'
+    for filen in glob.glob(
+            os.path.join(depcc_dir, 'part-m-*{}.gz').format(part)):
         logging.info(filen)
         with gzip.open(filen, mode='rt', encoding="utf-8") as infile:
             lines = []
-            triple = {}
+            triple = defaultdict(str)
             n_sents = 0
             for i, line in enumerate(infile):
                 line = line.strip()
@@ -40,26 +43,24 @@ def select_from_conll(part=''):
                     df = pd.DataFrame.from_records(lines, columns=columns)
                     pred_i = df[df.deprel == 'ROOT'].id.values[0]
                     top_df = df[df.head_ == pred_i]
-                    if (set(top_df.deprel) == deps_wanted and
-                            len(top_df.deprel) == 4):
-                        for _, series in top_df.iterrows():
-                            triple[series.deprel] = series.lemma
-                        freq[(triple['nsubj'], triple['ROOT'], triple['dobj'])] += 1
-                        n_sents += 1
-                        if not n_sents % 10000:
-                            logging.debug((
-                                i,
-                                sorted(freq.items(),
-                                       key=lambda item: -item[1])[:4]))
-                                #triple))
+                    for _, series in top_df.iterrows():
+                        triple[series.deprel] = series.lemma
+                    freq[(triple['nsubj'], triple['ROOT'], 
+                          triple['dobj'])] += 1
+                    n_sents += 1
+                    if not n_sents % 10000:
+                        logging.debug((
+                            i,
+                            sorted(freq.items(),
+                                   key=lambda item: -item[1])[:4]))
                     lines = []
-                    triple = {}
+                    triple = defaultdict(str)
         df = pd.DataFrame.from_records(
             [triple + tuple([count]) for (triple, count) in freq.items()],
             columns=['nsubj', 'ROOT', 'dobj', 'freq']).set_index(
                 ['nsubj', 'ROOT', 'dobj'])
         df = df.sort_values('freq', ascending=False)
-        df.to_pickle('/mnt/permanent/home/makrai/project/verb-tensor/top_level/dataframe/freq{}.pkl'.format(part))
+        df.to_pickle('/mnt/permanent/home/makrai/project/verb-tensor/optional_dep/dataframe/freq{}.pkl'.format(part))
     return df
 
 
