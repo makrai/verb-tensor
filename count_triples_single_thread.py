@@ -5,6 +5,7 @@
 from collections import defaultdict
 import glob
 import gzip
+import os
 import pandas as pd
 import pickle
 import sys
@@ -43,10 +44,11 @@ def select_from_conll(part=''):
                     df = pd.DataFrame.from_records(lines, columns=columns)
                     pred_i = df[df.deprel == 'ROOT'].id.values[0]
                     top_df = df[df.head_ == pred_i]
-                    for _, series in top_df.iterrows():
-                        triple[series.deprel] = series.lemma
-                    freq[(triple['nsubj'], triple['ROOT'], 
-                          triple['dobj'])] += 1
+                    if True:#deps_wanted <= set(top_df.deprel):
+                        for _, series in top_df.iterrows():
+                            triple[series.deprel] = series.lemma.lower()
+                        freq[(triple['nsubj'], triple['ROOT'], 
+                              triple['dobj'])] += 1
                     n_sents += 1
                     if not n_sents % 10000:
                         logging.debug((
