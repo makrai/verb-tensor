@@ -20,7 +20,7 @@ import sktensor
 class VerbTensor():
     def __init__(self, input_part):
         self.part = input_part
-        self.project_dir = '/mnt/permanent/home/makrai/project/verb-tensor/top_level'
+        self.project_dir = '/mnt/permanent/home/makrai/project/verb-tensor/optional_dep'
         self.tensor_dir = os.path.join(self.project_dir, 'tensor', self.part)
         self.assoc_df_filen_patt = os.path.join(self.project_dir,
                                                 'dataframe/assoc{}.{}')
