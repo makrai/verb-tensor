@@ -56,7 +56,8 @@ def select_from_conll(part=''):
                     triple = {}
         df = pd.DataFrame.from_records(
             [triple + tuple([count]) for (triple, count) in freq.items()],
-            columns=['nsubj', 'ROOT', 'dobj', 'freq'])
+            columns=['nsubj', 'ROOT', 'dobj', 'freq']).set_index(
+                ['nsubj', 'ROOT', 'dobj'])
         df = df.sort_values('freq', ascending=False)
         df.to_pickle('/mnt/permanent/home/makrai/project/verb-tensor/top_level/dataframe/freq{}.pkl'.format(part))
     return df
