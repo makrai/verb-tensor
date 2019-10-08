@@ -20,7 +20,7 @@ import sktensor
 class VerbTensor():
     def __init__(self, input_part):
         self.part = input_part
-        self.project_dir = '/mnt/permanent/home/makrai/project/verb-tensor/optional_dep'
+        self.project_dir = '/mnt/permanent/home/makrai/project/verb-tensor/verb'
         self.tensor_dir = os.path.join(self.project_dir, 'tensor', self.part)
         self.assoc_df_filen_patt = os.path.join(self.project_dir,
                                                 'dataframe/assoc{}.{}')
@@ -45,7 +45,7 @@ class VerbTensor():
                                        rsuffix='_{}'.format(mode_pair))
         logging.info('Computing association scores..')
         log_total = np.log2(svo_count.freq.sum())
-        i_marginal_start = 1 if len(self.part) <= 2 else 4
+        i_marginal_start = 1 #if len(self.part) <= 2 else 4
         for name in svo_count.columns[i_marginal_start:]:
             # Computing log-probabilities  or 1- and 2-marginals
             # TODO cutoff == 0 -> log(0)
