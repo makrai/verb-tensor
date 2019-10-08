@@ -26,8 +26,8 @@ def select_from_conll(part=''):
     deps_wanted = set(['nsubj', 'ROOT', 'dobj'])
     freq = defaultdict(int)
     depcc_dir = '/mnt/permanent/Language/English/Crawl/DepCC/corpus/parsed'
-    for filen in glob.glob(
-            os.path.join(depcc_dir, 'part-m-*{}.gz').format(part)):
+    for filen in sorted(glob.glob(
+            os.path.join(depcc_dir, 'part-m-*{}.gz').format(part))):
         logging.info(filen)
         with gzip.open(filen, mode='rt', encoding="utf-8") as infile:
             lines = []
@@ -42,15 +42,22 @@ def select_from_conll(part=''):
                 elif lines:
                     # Finishes sentence and inits next.
                     df = pd.DataFrame.from_records(lines, columns=columns)
-                    pred_i = df[df.deprel == 'ROOT'].id.values[0]
+                    main_verb = df[(df.deprel == 'ROOT') &
+                                   (df.upos.str.startswith('VB'))]
+                    if main_verb.shape[0] == 1:
+                        pred_i = main_verb.id.values[0]
+                    else:
+                        if main_verb.shape[0] > 1:
+                            logging.debug('More roots: \n{}'.format(df))
+                        pred_i = '-1'
                     top_df = df[df.head_ == pred_i]
-                    if True:#deps_wanted <= set(top_df.deprel):
-                        for _, series in top_df.iterrows():
-                            triple[series.deprel] = series.lemma.lower()
-                        freq[(triple['nsubj'], triple['ROOT'], 
-                              triple['dobj'])] += 1
+                    #if deps_wanted <= set(top_df.deprel):
+                    for _, series in top_df.reset_index().iterrows():
+                        triple[series.deprel] = series.lemma.lower()
+                    if ('nsubj' in triple and 'dobj' in triple):
+                        freq[(triple['nsubj'], triple['ROOT'], triple['dobj'])] += 1
                     n_sents += 1
-                    if not n_sents % 10000:
+                    if not n_sents % 100000:
                         logging.debug((
                             i,
                             sorted(freq.items(),
@@ -62,7 +69,7 @@ def select_from_conll(part=''):
             columns=['nsubj', 'ROOT', 'dobj', 'freq']).set_index(
                 ['nsubj', 'ROOT', 'dobj'])
         df = df.sort_values('freq', ascending=False)
-        df.to_pickle('/mnt/permanent/home/makrai/project/verb-tensor/optional_dep/dataframe/freq{}.pkl'.format(part))
+        df.to_pickle('/mnt/permanent/home/makrai/project/verb-tensor/verb/dataframe/freq{}.pkl'.format(part))
     return df
 
 
