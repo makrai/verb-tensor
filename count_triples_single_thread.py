@@ -61,7 +61,7 @@ def select_from_conll(part=''):
                         logging.debug((
                             i,
                             sorted(freq.items(),
-                                   key=lambda item: -item[1])[:4]))
+                                   key=lambda item: -item[1])[:3]))
                     lines = []
                     triple = defaultdict(str)
         df = pd.DataFrame.from_records(
