@@ -37,7 +37,7 @@ class VerbTensor():
         marginal2 = {mode_pair: svo_count.groupby(list(mode_pair)).sum()
                      for mode_pair in itertools.combinations(self.modes, 2)}
         for mode in self.modes:
-            svo_count = svo_count.join(marginal[mode], on=mode, 
+            svo_count = svo_count.join(marginal[mode], on=mode,
                                        rsuffix='_{}'.format(mode))
         for mode_pair in itertools.combinations(self.modes, 2):
             logging.debug(mode_pair)
@@ -76,7 +76,7 @@ class VerbTensor():
             svo_count.dice_denom += svo_count['freq_{}'.format(mode)]
         svo_count.log_dice /= svo_count.dice_denom
         del svo_count['dice_denom']
-        svo_count.log_dice = np.log2(svo_count.log_dice) 
+        svo_count.log_dice = np.log2(svo_count.log_dice)
         svo_count.log_dice -= svo_count.log_dice.min()
         svo_count['dice_sali'] = svo_count.log_dice * svo_count.log_freq
         logging.info('Saving to {}{}..'.format(self.assoc_df_filen_patt,
@@ -142,27 +142,27 @@ class VerbTensor():
         pickle.dump(result, open(decomp_filen, mode='wb'))
 
 
+weights = ['log_freq', 'pmi', 'iact_info', 'salience', 'iact_sali', 'log_dice',
+           'dice_sali']
+
 def parse_args():
     parser = argparse.ArgumentParser(
         description='Decompose a tensor of verb and argument cooccurrences')
-    parser.add_argument(
-        '--weight', default='log_freq',
-        help="['log_freq', 'pmi', 'iact_info', 'salience', 'iact_sali', "
-        "'log_dice']")
+    parser.add_argument('--weight', choices=weights)
+        #default='log_freq',
     parser.add_argument('--cutoff', type=int, default=2)
-    parser.add_argument('--rank', type=int, default=64)
+    parser.add_argument('--rank', type=int)#, default=64)
     parser.add_argument('--input-part', default='', dest='input_part')
     return parser.parse_args()
+
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG,
                         format='%(levelname)-8s [%(lineno)d] %(message)s')
     args = parse_args()
     decomposer = VerbTensor(args.input_part)
-    for rank_exp in range(1, 10):
-        args.rank = 2**rank_exp
-        for weight in ['log_freq', 'pmi', 'iact_info', 'salience', 'iact_sali',
-                       'log_dice', 'dice_sali']:
-            args.weight = weight
-            decomposer.decomp(weight=args.weight, cutoff=args.cutoff,
-                              rank=args.rank)
+    if not args.rank:
+        args.rank = 2**np.random.randint(1, 9)
+    if not args.weight:
+        args.weight = weights[np.random.randint(0, len(weights))]
+    decomposer.decomp(weight=args.weight, cutoff=args.cutoff, rank=args.rank)
