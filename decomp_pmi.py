@@ -119,8 +119,9 @@ class VerbTensor():
         shape=tuple(len(self.index[mode]) for mode in self.modes)
         logging.debug('Creating tensor (3/3) {}..'.format(shape))
         self.sparse_tensor = sktensor.sptensor(coords, data, shape=shape)
-        pickle.dump((self.sparse_tensor, self.index), open(os.path.join(
-            self.tensor_dir, self.sparse_filen), mode='wb'))
+        pickle.dump((self.sparse_tensor, self.index), 
+                    open(os.path.join(self.tensor_dir, self.sparse_filen),
+                         mode='wb'))
 
     def decomp(self, weight, cutoff, rank):
         if cutoff == 0:
@@ -135,7 +136,7 @@ class VerbTensor():
             return
         self.sparse_filen = os.path.join(
             self.tensor_dir,
-            '{}_{}_{}.pkl'.format( 'sparstensr', weight, cutoff))
+            '{}_{}_{}.pkl'.format('sparstensr', weight, cutoff))
         self.get_sparse(weight, cutoff)
         logging.debug('Orth-ALS..')
         result = orth_als(self.sparse_tensor, rank)
@@ -161,8 +162,11 @@ if __name__ == '__main__':
                         format='%(levelname)-8s [%(lineno)d] %(message)s')
     args = parse_args()
     decomposer = VerbTensor(args.input_part)
-    if not args.rank:
-        args.rank = 2**np.random.randint(1, 9)
-    if not args.weight:
-        args.weight = weights[np.random.randint(0, len(weights))]
-    decomposer.decomp(weight=args.weight, cutoff=args.cutoff, rank=args.rank)
+    if not args.rank and not args.weight:
+        for exp in range(10):
+            args.rank = 2**exp#np.random.randint(1, 9)
+        for weight in weights: 
+            args.weight = weight#s[np.random.randint(0, len(weights))]
+        decomposer.decomp(weight=args.weight, cutoff=args.cutoff, rank=args.rank)
+    else:
+        decomposer.decomp(weight=args.weight, cutoff=args.cutoff, rank=args.rank)
