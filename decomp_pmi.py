@@ -19,9 +19,9 @@ import sktensor
 
 class VerbTensor():
     def __init__(self, input_part):
-        self.part = input_part
+        self.input_part = input_part
         self.project_dir = '/mnt/permanent/home/makrai/project/verb-tensor/verb'
-        self.tensor_dir = os.path.join(self.project_dir, 'tensor', self.part)
+        self.tensor_dir = os.path.join(self.project_dir, 'tensor', self.input_part)
         self.assoc_df_filen_patt = os.path.join(self.project_dir,
                                                 'dataframe/assoc{}.{}')
         self.modes = ['nsubj', 'ROOT', 'dobj']
@@ -29,7 +29,7 @@ class VerbTensor():
 
     def append_pmi(self, write_tsv=False):
         filen = os.path.join(self.project_dir, 'dataframe/freq{}.pkl'.format(
-            self.part))
+            self.input_part))
         logging.info('Reading freqs from {}'.format(filen))
         svo_count = pd.read_pickle(filen)
         logging.info('Computing marginals..')
@@ -45,7 +45,7 @@ class VerbTensor():
                                        rsuffix='_{}'.format(mode_pair))
         logging.info('Computing association scores..')
         log_total = np.log2(svo_count.freq.sum())
-        i_marginal_start = 1 #if len(self.part) <= 2 else 4
+        i_marginal_start = 1 #if len(self.input_part) <= 2 else 4
         for name in svo_count.columns[i_marginal_start:]:
             # Computing log-probabilities  or 1- and 2-marginals
             # TODO cutoff == 0 -> log(0)
@@ -80,10 +80,10 @@ class VerbTensor():
         svo_count.log_dice -= svo_count.log_dice.min()
         svo_count['dice_sali'] = svo_count.log_dice * svo_count.log_freq
         logging.info('Saving to {}{}..'.format(self.assoc_df_filen_patt,
-                                               self.part))
-        svo_count.to_pickle(self.assoc_df_filen_patt.format(self.part, 'pkl'))
+                                               self.input_part))
+        svo_count.to_pickle(self.assoc_df_filen_patt.format(self.input_part, 'pkl'))
         if write_tsv:
-            svo_count.to_csv(self.assoc_df_filen_patt.format(self.part, 'tsv'),
+            svo_count.to_csv(self.assoc_df_filen_patt.format(self.input_part, 'tsv'),
                              sep='\t', index=False, float_format='%.5g')
         return svo_count
 
@@ -93,11 +93,11 @@ class VerbTensor():
             self.sparse_tensor, self.index =  pickle.load(open(
                 self.sparse_filen, mode='rb'))
             return
-        if os.path.exists(self.assoc_df_filen_patt.format(self.part, 'pkl')):
+        if os.path.exists(self.assoc_df_filen_patt.format(self.input_part, 'pkl')):
             logging.info('Reading association weights from {} {}..'.format(
-                self.assoc_df_filen_patt, self.part))
+                self.assoc_df_filen_patt, self.input_part))
             self.pmi_df = pd.read_pickle(
-                self.assoc_df_filen_patt.format(self.part, 'pkl'))
+                self.assoc_df_filen_patt.format(self.input_part, 'pkl'))
         else:
             self.pmi_df = self.append_pmi()
         self.pmi_df = self.pmi_df.reset_index()
@@ -143,13 +143,13 @@ class VerbTensor():
         pickle.dump(result, open(decomp_filen, mode='wb'))
 
 
-weights = ['log_freq', 'pmi', 'iact_info', 'salience', 'iact_sali', 'log_dice',
-           'dice_sali']
+weights =  ['log_freq', 'pmi', 'iact_info', 'salience', 'iact_sali',
+            'log_dice', 'dice_sali']
 
 def parse_args():
     parser = argparse.ArgumentParser(
         description='Decompose a tensor of verb and argument cooccurrences')
-    parser.add_argument('--weight', choices=weights)
+    parser.add_argument('--weight', choices=['for']+weights)
         #default='log_freq',
     parser.add_argument('--cutoff', type=int, default=2)
     parser.add_argument('--rank', type=int)#, default=64)
@@ -162,11 +162,12 @@ if __name__ == '__main__':
                         format='%(levelname)-8s [%(lineno)d] %(message)s')
     args = parse_args()
     decomposer = VerbTensor(args.input_part)
-    if not args.rank and not args.weight:
+    if args.weight == 'for':
+        logging.debug('')
         for exp in range(10):
             args.rank = 2**exp#np.random.randint(1, 9)
-        for weight in weights: 
-            args.weight = weight#s[np.random.randint(0, len(weights))]
-        decomposer.decomp(weight=args.weight, cutoff=args.cutoff, rank=args.rank)
+            for weight in weights: 
+                args.weight = weight#s[np.random.randint(0, len(weights))]
+                decomposer.decomp(weight=args.weight, cutoff=args.cutoff, rank=args.rank)
     else:
         decomposer.decomp(weight=args.weight, cutoff=args.cutoff, rank=args.rank)
