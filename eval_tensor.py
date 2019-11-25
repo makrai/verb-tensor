@@ -21,7 +21,7 @@ consistent_name_d = {
     'salience': 'pmi-sali', 'iact_sali': 'iact-sali', 'dice_sali': 'dice-sali'}
 
 
-def test_sim(task_df, cutoff=5, max_rank=128, mode_to_test='svo',
+def test_sim(task_df0, cutoff=5, max_rank=128, mode_to_test='svo',
              normlz_vocb=True, lmbda=False): 
     modes = ['nsubj', 'ROOT', 'dobj']
     if mode_to_test == 'svo':
@@ -47,6 +47,7 @@ def test_sim(task_df, cutoff=5, max_rank=128, mode_to_test='svo',
     else:
         raise Exception(
             'mode_to_test has to be eigther svo, nsubj, ROOT, or dobj')
+    task_df = task_df0.copy() # Subj and obj sim not to go in the same df
     mean = task_df[sim_col].mean()
     for weight_oldname, weight_newname in consistent_name_d.items():
         logging.info('Testing {}..'.format(weight_newname))
