@@ -27,7 +27,7 @@ def sum_frames(common_suff):
         logging.info('Reading {}..'.format(filen))
         df0 = pd.read_pickle(filen).reset_index().set_index(['nsubj', 'ROOT', 'dobj'])
         df += df0.reindex(df.index, fill_value=0)
-    logging.info('Pickling dataframes..')
+    logging.info('Pickling dataframe..')
     df = df.astype(int)
     df = df.sort_values('freq', ascending=False)
     df.to_pickle(os.path.join(df_dir, 'freq{}.pkl').format(common_suff))
