@@ -31,61 +31,61 @@ class VerbTensor():
         filen = os.path.join(self.project_dir, 'dataframe/freq{}.pkl'.format(
             self.input_part))
         logging.info('Reading freqs from {}'.format(filen))
-        svo_count = pd.read_pickle(filen)
+        df = pd.read_pickle(filen)
         logging.info('Computing marginals..')
-        marginal = {mode: svo_count.groupby(mode).sum() for mode in self.modes}
-        marginal2 = {mode_pair: svo_count.groupby(list(mode_pair)).sum()
+        marginal = {mode: df.groupby(mode).sum() for mode in self.modes}
+        marginal2 = {mode_pair: df.groupby(list(mode_pair)).sum()
                      for mode_pair in itertools.combinations(self.modes, 2)}
         for mode in self.modes:
-            svo_count = svo_count.join(marginal[mode], on=mode,
+            df = df.join(marginal[mode], on=mode,
                                        rsuffix='_{}'.format(mode))
         for mode_pair in itertools.combinations(self.modes, 2):
             logging.debug(mode_pair)
-            svo_count = svo_count.join(marginal2[mode_pair], on=mode_pair,
+            df = df.join(marginal2[mode_pair], on=mode_pair,
                                        rsuffix='_{}'.format(mode_pair))
         logging.info('Computing association scores..')
-        log_total = np.log2(svo_count.freq.sum())
+        log_total = np.log2(df.freq.sum())
         i_marginal_start = 1 #if len(self.input_part) <= 2 else 4
-        for name in svo_count.columns[i_marginal_start:]:
-            # Computing log-probabilities  or 1- and 2-marginals
+        for name in df.columns[i_marginal_start:]:
+            # Computing log-probabilities or 1- and 2-marginals
             # TODO cutoff == 0 -> log(0)
-            svo_count['log_prob_{}'.format(name)] = np.log2(svo_count[name])
-            svo_count['log_prob_{}'.format(name)] -= log_total
-        svo_count['log_freq'] = np.log2(svo_count.freq)
-        svo_count['log_prob'] = svo_count.log_freq - log_total
-        svo_count['pmi'] = svo_count.log_prob
-        svo_count['iact_info'] = -svo_count.log_prob
+            df['log_prob_{}'.format(name)] = np.log2(df[name])
+            df['log_prob_{}'.format(name)] -= log_total
+        df['log_freq'] = np.log2(df.freq)
+        df['log_prob'] = df.log_freq - log_total
+        df['pmi'] = df.log_prob
+        df['iact_info'] = -df.log_prob
         for mode in self.modes:
-            svo_count.pmi -= svo_count['log_prob_freq_{}'.format(mode)]
-            svo_count.iact_info += svo_count['log_prob_freq_{}'.format(mode)]
+            df.pmi -= df['log_prob_freq_{}'.format(mode)]
+            df.iact_info += df['log_prob_freq_{}'.format(mode)]
         for mode_pair in itertools.combinations(self.modes, 2):
-            svo_count.iact_info -= svo_count['log_prob_freq_{}'.format(mode_pair)]
-        svo_count['0'] = 0
-        svo_count.pmi = svo_count[['pmi', '0']].max(axis=1)
-        svo_count.iact_info = svo_count[['iact_info', '0']].max(axis=1)
-        del svo_count['0']
+            df.iact_info -= df['log_prob_freq_{}'.format(mode_pair)]
+        df['0'] = 0
+        df.pmi = df[['pmi', '0']].max(axis=1)
+        df.iact_info = df[['iact_info', '0']].max(axis=1)
+        del df['0']
         # TODO Interpretation of positive pointwise interaction information
         #logging.debug('Computing salience..')
-        svo_count['salience'] = svo_count.pmi * svo_count.log_freq
-        svo_count['iact_sali'] = svo_count.iact_info * svo_count.log_freq
+        df['salience'] = df.pmi * df.log_freq
+        df['iact_sali'] = df.iact_info * df.log_freq
         #logging.debug('Computing Dice..')
-        svo_count['log_dice'] = 3 * svo_count.freq
+        df['log_dice'] = 3 * df.freq
         # This is only the numerator of Dice, and no logarithm at this point.
-        svo_count['dice_denom'] = 0
+        df['dice_denom'] = 0
         for mode in self.modes:
-            svo_count.dice_denom += svo_count['freq_{}'.format(mode)]
-        svo_count.log_dice /= svo_count.dice_denom
-        del svo_count['dice_denom']
-        svo_count.log_dice = np.log2(svo_count.log_dice)
-        svo_count.log_dice -= svo_count.log_dice.min()
-        svo_count['dice_sali'] = svo_count.log_dice * svo_count.log_freq
+            df.dice_denom += df['freq_{}'.format(mode)]
+        df.log_dice /= df.dice_denom
+        del df['dice_denom']
+        df.log_dice = np.log2(df.log_dice)
+        df.log_dice -= df.log_dice.min()
+        df['dice_sali'] = df.log_dice * df.log_freq
         logging.info('Saving to {}{}..'.format(self.assoc_df_filen_patt,
                                                self.input_part))
-        svo_count.to_pickle(self.assoc_df_filen_patt.format(self.input_part, 'pkl'))
+        df.to_pickle(self.assoc_df_filen_patt.format(self.input_part, 'pkl'))
         if write_tsv:
-            svo_count.to_csv(self.assoc_df_filen_patt.format(self.input_part, 'tsv'),
+            df.to_csv(self.assoc_df_filen_patt.format(self.input_part, 'tsv'),
                              sep='\t', index=False, float_format='%.5g')
-        return svo_count
+        return df
 
     def get_sparse(self, weight, cutoff):
         if os.path.exists(self.sparse_filen):
