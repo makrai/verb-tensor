@@ -37,12 +37,11 @@ class VerbTensor():
         marginal2 = {mode_pair: df.groupby(list(mode_pair)).sum()
                      for mode_pair in itertools.combinations(self.modes, 2)}
         for mode in self.modes:
-            df = df.join(marginal[mode], on=mode,
-                                       rsuffix='_{}'.format(mode))
+            df = df.join(marginal[mode], on=mode, rsuffix='_{}'.format(mode))
         for mode_pair in itertools.combinations(self.modes, 2):
             logging.debug(mode_pair)
             df = df.join(marginal2[mode_pair], on=mode_pair,
-                                       rsuffix='_{}'.format(mode_pair))
+                         rsuffix='_{}'.format(mode_pair))
         logging.info('Computing association scores..')
         log_total = np.log2(df.freq.sum())
         i_marginal_start = 1 #if len(self.input_part) <= 2 else 4
@@ -57,13 +56,15 @@ class VerbTensor():
         df['iact_info'] = -df.log_prob
         for mode in self.modes:
             df.pmi -= df['log_prob_freq_{}'.format(mode)]
-            df.iact_info += df['log_prob_freq_{}'.format(mode)]
+            df.iact_info -= df['log_prob_freq_{}'.format(mode)]
         for mode_pair in itertools.combinations(self.modes, 2):
-            df.iact_info -= df['log_prob_freq_{}'.format(mode_pair)]
+            df.iact_info += df['log_prob_freq_{}'.format(mode_pair)]
         df['0'] = 0
         df.pmi = df[['pmi', '0']].max(axis=1)
         df.iact_info = df[['iact_info', '0']].max(axis=1)
         del df['0']
+        df['npmi'] = df.pmi / -df.log_prob
+        df['niact'] = df.iact_info / -df.log_prob
         # TODO Interpretation of positive pointwise interaction information
         #logging.debug('Computing salience..')
         df['salience'] = df.pmi * df.log_freq
