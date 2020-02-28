@@ -145,14 +145,14 @@ class VerbTensor():
 
 
 weights =  ['log_freq', 'pmi', 'iact_info', 'salience', 'iact_sali',
-            'log_dice', 'dice_sali']
+            'log_dice', 'dice_sali', 'npmi', 'niact']
 
 def parse_args():
     parser = argparse.ArgumentParser(
         description='Decompose a tensor of verb and argument cooccurrences')
     parser.add_argument('--weight', choices=['for']+weights)
         #default='log_freq',
-    parser.add_argument('--cutoff', type=int, default=2)
+    parser.add_argument('--cutoff', type=int, default=5)
     parser.add_argument('--rank', type=int)#, default=64)
     parser.add_argument('--input-part', default='', dest='input_part')
     return parser.parse_args()
@@ -165,7 +165,7 @@ if __name__ == '__main__':
     decomposer = VerbTensor(args.input_part)
     if args.weight == 'for':
         logging.debug('')
-        for exp in range(10):
+        for exp in range(1, 10):
             args.rank = 2**exp#np.random.randint(1, 9)
             for weight in weights: 
                 args.weight = weight#s[np.random.randint(0, len(weights))]
