@@ -27,7 +27,7 @@ class VerbTensor():
         self.modes = ['nsubj', 'ROOT', 'dobj']
         # mazsola: ['NOM', 'stem', 'ACC']
 
-    def append_pmi(self, write_tsv=False):
+    def append_pmi(self, write_tsv=False, positive=True):
         filen = os.path.join(self.project_dir, 'dataframe/freq{}.pkl'.format(
             self.input_part))
         logging.info('Reading freqs from {}'.format(filen))
@@ -59,10 +59,11 @@ class VerbTensor():
             df.iact_info -= df['log_prob_freq_{}'.format(mode)]
         for mode_pair in itertools.combinations(self.modes, 2):
             df.iact_info += df['log_prob_freq_{}'.format(mode_pair)]
-        df['0'] = 0
-        df.pmi = df[['pmi', '0']].max(axis=1)
-        df.iact_info = df[['iact_info', '0']].max(axis=1)
-        del df['0']
+        if positive:    
+            df['0'] = 0
+            df.pmi = df[['pmi', '0']].max(axis=1)
+            df.iact_info = df[['iact_info', '0']].max(axis=1)
+            del df['0']
         df['npmi'] = df.pmi / -df.log_prob
         df['niact'] = df.iact_info / -df.log_prob
         # TODO Interpretation of positive pointwise interaction information
