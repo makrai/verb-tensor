@@ -18,11 +18,12 @@ verb_sim_data_dir = '/mnt/permanent/Language/English/Data/verb-similarity/Sadrza
 test_data_dir = '/mnt/permanent/Language/English/Data'
 consistent_name_d = {
     'log_freq': 'log-freq',
-    'pmi': 'pmi-vanl', 'iact_info': 'iact-vanl', 'log_dice': 'dice-vanl',
+    'pmi': 'pmi-vanl', 'npmi': 'npmi', 'iact_info': 'iact-vanl', 'niact':
+    'niact', 'log_dice': 'dice-vanl',
     'salience': 'pmi-sali', 'iact_sali': 'iact-sali', 'dice_sali': 'dice-sali'}
 
 
-def test_sim(task_df0, cutoff=5, max_rank=128, mode_to_test='svo',
+def test_sim(task_df0, cutoff=10, max_rank=128, mode_to_test='svo',
              normlz_vocb=True, lmbda=False): 
     modes = ['nsubj', 'ROOT', 'dobj']
     if mode_to_test == 'svo':
