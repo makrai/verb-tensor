@@ -138,7 +138,7 @@ if __name__ == '__main__':
     #test_sim(read_SimLex().reset_index(), mode_to_test='dobj')
 
 
-def predict_verb(target_df, weight, rank, cutoff=5, prec_at=1, log_oov=False):
+def predict_verb(target_df, weight, rank, cutoff=20, prec_at=1, log_oov=False):
     _, index = pickle.load(open(os.path.join(
         tensor_dir, 'sparstensr_{}_{}.pkl').format(weight, cutoff), mode='rb'))
     basen = 'ktensor_{}_{}_{}.pkl'.format(weight, cutoff, rank)
