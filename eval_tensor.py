@@ -13,17 +13,17 @@ logging.basicConfig(level=logging.DEBUG,
         format='%(levelname)-8s [%(lineno)d] %(message)s')
 
 
-tensor_dir = '/mnt/permanent/home/makrai/project/verb-tensor/verb/tensor/0/'
+tensor_dir = '/mnt/permanent/home/makrai/project/verb-tensor/verb/tensor/0to4/'
 verb_sim_data_dir = '/mnt/permanent/Language/English/Data/verb-similarity/Sadrzadeh/'
 test_data_dir = '/mnt/permanent/Language/English/Data'
 consistent_name_d = {
     'log_freq': 'log-freq',
-    'pmi': 'pmi-vanl', 'npmi': 'npmi', 'iact_info': 'iact-vanl', 'niact':
-    'niact', 'log_dice': 'dice-vanl',
+    'pmi': 'pmi-vanl', 'iact_info': 'iact-vanl', 'log_dice': 'dice-vanl',
+    'npmi': 'pmi-norm', 'niact': 'iact-norm',
     'salience': 'pmi-sali', 'iact_sali': 'iact-sali', 'dice_sali': 'dice-sali'}
 
 
-def test_sim(task_df0, cutoff=10, max_rank=128, mode_to_test='svo',
+def test_sim(task_df0, cutoff=20, max_rank=256, mode_to_test='svo',
              normlz_vocb=True, lmbda=False): 
     modes = ['nsubj', 'ROOT', 'dobj']
     if mode_to_test == 'svo':
