@@ -17,10 +17,10 @@ tensor_dir = '/mnt/permanent/home/makrai/project/verb-tensor/verb/tensor/0to4/'
 verb_sim_data_dir = '/mnt/permanent/Language/English/Data/verb-similarity/Sadrzadeh/'
 test_data_dir = '/mnt/permanent/Language/English/Data'
 consistent_name_d = {
-    'log_freq': 'log-freq',
-    'pmi': 'pmi-vanl', 'iact_info': 'iact-vanl', 'log_dice': 'dice-vanl',
-    'npmi': 'pmi-norm', 'niact': 'iact-norm',
-    'salience': 'pmi-sali', 'iact_sali': 'iact-sali', 'dice_sali': 'dice-sali'}
+    'log_freq': 'log_freq',
+    'pmi': 'pmi_vanl', 'iact_info': 'iact_vanl', 'log_dice': 'dice_vanl',
+    'npmi': 'pmi_norm', 'niact': 'iact_norm',
+    'salience': 'pmi_sali', 'iact_sali': 'iact_sali', 'dice_sali': 'dice_sali'}
 
 
 def test_sim(task_df0, cutoff=20, max_rank=256, mode_to_test='svo',
