@@ -13,17 +13,17 @@ logging.basicConfig(level=logging.DEBUG,
         format='%(levelname)-8s [%(lineno)d] %(message)s')
 
 
-tensor_dir = '/mnt/permanent/home/makrai/project/verb-tensor/verb/tensor/0/'
+tensor_dir = '/mnt/permanent/home/makrai/project/verb-tensor/verb/tensor/0to4/'
 verb_sim_data_dir = '/mnt/permanent/Language/English/Data/verb-similarity/Sadrzadeh/'
 test_data_dir = '/mnt/permanent/Language/English/Data'
 consistent_name_d = {
-    'log_freq': 'log-freq',
-    'pmi': 'pmi-vanl', 'npmi': 'npmi', 'iact_info': 'iact-vanl', 'niact':
-    'niact', 'log_dice': 'dice-vanl',
-    'salience': 'pmi-sali', 'iact_sali': 'iact-sali', 'dice_sali': 'dice-sali'}
+    'log_freq': 'log_freq',
+    'pmi': 'pmi_vanl', 'iact_info': 'iact_vanl', 'log_dice': 'dice_vanl',
+    'npmi': 'pmi_norm', 'niact': 'iact_norm',
+    'salience': 'pmi_sali', 'iact_sali': 'iact_sali', 'dice_sali': 'dice_sali'}
 
 
-def test_sim(task_df0, cutoff=10, max_rank=128, mode_to_test='svo',
+def test_sim(task_df0, cutoff=20, max_rank=256, mode_to_test='svo',
              normlz_vocb=True, lmbda=False): 
     modes = ['nsubj', 'ROOT', 'dobj']
     if mode_to_test == 'svo':
@@ -138,7 +138,7 @@ if __name__ == '__main__':
     #test_sim(read_SimLex().reset_index(), mode_to_test='dobj')
 
 
-def predict_verb(target_df, weight, rank, cutoff=5, prec_at=1, log_oov=False):
+def predict_verb(target_df, weight, rank, cutoff=20, prec_at=1, log_oov=False):
     _, index = pickle.load(open(os.path.join(
         tensor_dir, 'sparstensr_{}_{}.pkl').format(weight, cutoff), mode='rb'))
     basen = 'ktensor_{}_{}_{}.pkl'.format(weight, cutoff, rank)
