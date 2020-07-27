@@ -12,11 +12,16 @@ import sys
 import pyconll
 
 
-logging.basicConfig(level=logging.DEBUG, format='%(levelname)-8s [%(lineno)d] %(message)s')
+logging.basicConfig(
+    level=logging.DEBUG, 
+    format="%(module)s (%(lineno)s) - %(levelname)s - %(message)s")
 
 
 def depcc_to_conllu(filen_gz):
-    """Fixes indexing and feats, and yields conllus of a sentence, one sentence each time."""
+    """
+    Fixes indexing and feats, and 
+    yields conllus of a sentence, one sentence each time.
+    """
     with gzip.open(filen_gz, mode='rt') as infile:
         lines = []
         for line in infile:
@@ -36,14 +41,21 @@ def depcc_to_conllu(filen_gz):
 
 
 def get_triples(input_part=9100):
+    """
+    Empty nsubj and dobj are represented by empty string.
+    """
     triples = []
     for filen in glob(f'/mnt/permanent/Language/English/Crawl/DepCC/corpus/parsed/part-m-*{input_part}.gz'):
         logging.info(filen)
         for sent_str in depcc_to_conllu(filen):
-            train = pyconll.load_from_string(sent_str)
-            sentence = train.pop() # sent_str is one sentence.
+            try:
+                train = pyconll.load_from_string(sent_str)
+            except Exception as e:
+                logging.error(e)
+                continue
+            sentence = train.pop() # sent_str is only one sentence.
 
-            triples_in_sent = defaultdict(dict)
+            triples_in_sent = defaultdict(lambda: {'nsubj': '', 'dobj': ''})
             # triples = {id_of_root: {'nsubj': 'dog'}}
 
             # Collecting the arguments..
@@ -58,13 +70,11 @@ def get_triples(input_part=9100):
 
             # Appending full triples to the list..
             for triple in triples_in_sent.values():
-                if 'dobj' in triple and 'nsubj' in triple:
-                    triples.append(triple)
+                triples.append(triple)
 
     df = pd.DataFrame(triples)
     ser = df.groupby(list(df.columns)).size().sort_values(ascending=False)
     ser.to_pickle(f'/mnt/permanent/home/makrai/project/verb-tensor/pyconll/dataframe/freq{input_part}.pkl')
-    return ser
 
 
 if __name__ == '__main__':
