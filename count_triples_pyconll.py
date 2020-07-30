@@ -52,9 +52,8 @@ def get_triples(input_part=9100):
                 train = pyconll.load_from_string(sent_str)
             except Exception as e:
                 logging.error(e)
-                continue
-            sentence = train.pop() # sent_str is only one sentence.
-
+                continue 
+            sentence = train.pop() # sent_str is only one sentence.  
             triples_in_sent = defaultdict(lambda: {'nsubj': '', 'dobj': ''})
             # triples = {id_of_root: {'nsubj': 'dog'}}
 
