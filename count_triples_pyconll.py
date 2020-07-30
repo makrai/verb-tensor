@@ -40,7 +40,11 @@ def get_triples(input_part=9100):
     for filen in glob(f'/mnt/permanent/Language/English/Crawl/DepCC/corpus/parsed/part-m-*{input_part}.gz'):
         logging.info(filen)
         for sent_str in depcc_to_conllu(filen):
-            train = pyconll.load_from_string(sent_str)
+            try:
+                train = pyconll.load_from_string(sent_str)
+            except Exception as e:
+                logging.error(e)
+                continue 
             sentence = train.pop() # sent_str is one sentence.
 
             triples_in_sent = defaultdict(dict)
