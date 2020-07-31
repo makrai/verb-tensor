@@ -36,7 +36,7 @@ class ClusterVerbs():
         self.min_samples = min_samples
         self.metric = metric
         self.init = init
-        tensor_dir = '/mnt/permanent/home/makrai/project/verb-tensor/verb/tensor/0'
+        tensor_dir = config['DEFAULT']['ProjectDirectory']+'tensor/0'
         logging.info('Loading tensor and index..')
         self.ktensor, _, _, _ = pickle.load(open(os.path.join(
             tensor_dir,

@@ -6,6 +6,7 @@ from collections import defaultdict
 from glob import glob
 import gzip
 import logging
+import os
 import pandas as pd
 import sys
 
@@ -73,7 +74,9 @@ def get_triples(input_part=9100):
 
     df = pd.DataFrame(triples)
     ser = df.groupby(list(df.columns)).size().sort_values(ascending=False)
-    ser.to_pickle(f'/mnt/permanent/home/makrai/project/verb-tensor/pyconll/dataframe/freq{input_part}.pkl')
+    ser.to_pickle(os.path.join(
+        config['DEFAULT']['ProjectDirectory'],
+        f'dataframe/freq{input_part}.pkl'))
 
 
 if __name__ == '__main__':
