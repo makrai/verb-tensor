@@ -5,6 +5,7 @@
 import argparse
 from bidict import bidict
 from collections import defaultdict
+import configparser
 import itertools
 import os
 import pandas as pd
@@ -20,7 +21,9 @@ import sktensor
 class VerbTensor():
     def __init__(self, input_part):
         self.input_part = input_part
-        self.project_dir = '/mnt/permanent/home/makrai/project/verb-tensor/verb'
+        config = configparser.ConfigParser()
+        config.read('config.ini')
+        self.project_dir = config['DEFAULT']['ProjectDirectory']
         self.tensor_dir = os.path.join(self.project_dir, 'tensor', self.input_part)
         self.assoc_df_filen_patt = os.path.join(self.project_dir,
                                                 'dataframe/assoc{}.{}')
@@ -30,7 +33,7 @@ class VerbTensor():
     def append_pmi(self, write_tsv=False, positive=True):
         filen = os.path.join(self.project_dir, 'dataframe/freq{}.pkl'.format(
             self.input_part))
-        logging.info('Reading freqs from {}'.format(filen))
+        logging.info(f'Reading freqs from {filen}')
         df = pd.read_pickle(filen)
         logging.info('Computing marginals..')
         marginal = {mode: df.groupby(mode).sum() for mode in self.modes}
@@ -96,8 +99,8 @@ class VerbTensor():
                 self.sparse_filen, mode='rb'))
             return
         if os.path.exists(self.assoc_df_filen_patt.format(self.input_part, 'pkl')):
-            logging.info('Reading association weights from {} {}..'.format(
-                self.assoc_df_filen_patt, self.input_part))
+            logging.info('Reading association weights from '+
+                         self.assoc_df_filen_patt.format(self.input_part, '.'))
             self.pmi_df = pd.read_pickle(
                 self.assoc_df_filen_patt.format(self.input_part, 'pkl'))
         else:
@@ -119,7 +122,13 @@ class VerbTensor():
         coords = tuple(map(list, coords))
         data = df[weight].values
         shape=tuple(len(self.index[mode]) for mode in self.modes)
-        logging.debug('Creating tensor (3/3) {}..'.format(shape))
+        logging.debug('Creating tensor (3/3) {}, {}..'.format(
+            ' x '.join(shape)))
+        try:
+            logging.debug(len(np.nonzero(data)[0]))
+        except:
+            logging.warn('')
+            pass
         self.sparse_tensor = sktensor.sptensor(coords, data, shape=shape)
         pickle.dump((self.sparse_tensor, self.index), 
                     open(os.path.join(self.tensor_dir, self.sparse_filen),

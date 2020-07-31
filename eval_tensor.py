@@ -13,7 +13,7 @@ logging.basicConfig(level=logging.DEBUG,
         format='%(levelname)-8s [%(lineno)d] %(message)s')
 
 
-tensor_dir = '/mnt/permanent/home/makrai/project/verb-tensor/verb/tensor/0to4/'
+tensor_dir = config['DEFAULT']['ProjectDirectory']+'tensor/0to4/'
 verb_sim_data_dir = '/mnt/permanent/Language/English/Data/verb-similarity/Sadrzadeh/'
 test_data_dir = '/mnt/permanent/Language/English/Data'
 consistent_name_d = {

@@ -12,13 +12,13 @@ import sys
 
 import logging
 logging.basicConfig(
-    level=logging.DEBUG, 
+    level=logging.DEBUG,
     format='%(levelname)-8s [%(lineno)d] %(message)s')
 
 
 def select_from_conll(part=''):
     """
-    Collects frequencies of subj, verb, dobj triples from depCC, 
+    Collects frequencies of subj, verb, dobj triples from depCC,
     including sencentes with top dependencies other than these.
     """
     columns = ['id', 'form', 'lemma', 'upos', 'xpos', 'feats', 'head_',
@@ -26,8 +26,8 @@ def select_from_conll(part=''):
     deps_wanted = set(['nsubj', 'ROOT', 'dobj'])
     freq = defaultdict(int)
     depcc_dir = '/mnt/permanent/Language/English/Crawl/DepCC/corpus/parsed'
-    for filen in sorted(glob.glob(
-            os.path.join(depcc_dir, 'part-m-*{}.gz').format(part))):
+    for filen in sorted(glob.glob(os.path.join(depcc_dir,
+                                               f'part-m-*{part}.gz'))):
         logging.info(filen)
         with gzip.open(filen, mode='rt', encoding="utf-8") as infile:
             lines = []
@@ -48,7 +48,7 @@ def select_from_conll(part=''):
                         pred_i = main_verb.id.values[0]
                     else:
                         if main_verb.shape[0] > 1:
-                            logging.debug('More roots: \n{}'.format(df))
+                            logging.debug(f'More roots: \n{df}')
                         pred_i = '-1'
                     top_df = df[df.head_ == pred_i]
                     #if deps_wanted <= set(top_df.deprel):
@@ -69,7 +69,7 @@ def select_from_conll(part=''):
             columns=['nsubj', 'ROOT', 'dobj', 'freq']).set_index(
                 ['nsubj', 'ROOT', 'dobj'])
         df = df.sort_values('freq', ascending=False)
-        df.to_pickle('/mnt/permanent/home/makrai/project/verb-tensor/verb/dataframe/freq{}.pkl'.format(part))
+        df.to_pickle(config['DEFAULT']['ProjectDirectory']+f'dataframe/freq{part}.pkl')
     return df
 
 

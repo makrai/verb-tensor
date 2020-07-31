@@ -78,7 +78,9 @@ def get_triples(input_part=9100):
 
     df = pd.DataFrame(triples)
     df = df.groupby(list(df.columns)).size().sort_values(ascending=False)
-    df.to_frame(name='freq').to_pickle(outfilen)
+    df.to_frame(name='freq').to_pickle(os.path.join(
+        config['DEFAULT']['ProjectDirectory'],
+        f'dataframe/freq{input_part}.pkl'))
 
 
 if __name__ == '__main__':
