@@ -123,12 +123,8 @@ class VerbTensor():
         data = df[weight].values
         shape=tuple(len(self.index[mode]) for mode in self.modes)
         logging.debug('Creating tensor (3/3) {}, {}..'.format(
-            ' x '.join(shape)))
-        try:
-            logging.debug(len(np.nonzero(data)[0]))
-        except:
-            logging.warn('')
-            pass
+            ' x '.join(map(str, shape)),
+            len(np.nonzero(data)[0])))
         self.sparse_tensor = sktensor.sptensor(coords, data, shape=shape)
         pickle.dump((self.sparse_tensor, self.index), 
                     open(os.path.join(self.tensor_dir, self.sparse_filen),
@@ -160,11 +156,11 @@ weights =  ['log_freq', 'pmi', 'iact_info', 'salience', 'iact_sali',
 def parse_args():
     parser = argparse.ArgumentParser(
         description='Decompose a tensor of verb and argument cooccurrences')
-    parser.add_argument('--weight', choices=['for']+weights)
+    parser.add_argument('--weight', choices=['for', 'rand']+weights)
         #default='log_freq',
     parser.add_argument('--cutoff', type=int, default=5)
     parser.add_argument('--rank', type=int)#, default=64)
-    parser.add_argument('--input-part', default='', dest='input_part')
+    parser.add_argument('--input-part', default='x0x', dest='input_part')
     return parser.parse_args()
 
 
@@ -180,5 +176,10 @@ if __name__ == '__main__':
             for weight in weights: 
                 args.weight = weight#s[np.random.randint(0, len(weights))]
                 decomposer.decomp(weight=args.weight, cutoff=args.cutoff, rank=args.rank)
+    elif args.weight == 'rand':
+        while True:
+            args.rank = 2**np.random.randint(1, 9)
+            args.weight = weights[np.random.randint(0, len(weights))]
+            decomposer.decomp(weight=args.weight, cutoff=args.cutoff, rank=args.rank)
     else:
         decomposer.decomp(weight=args.weight, cutoff=args.cutoff, rank=args.rank)
