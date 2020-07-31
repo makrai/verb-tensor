@@ -6,6 +6,7 @@ from collections import defaultdict
 from glob import glob
 import gzip
 import logging
+import os
 import pandas as pd
 import sys
 
@@ -44,6 +45,10 @@ def get_triples(input_part=9100):
     """
     Empty nsubj and dobj are represented by empty string.
     """
+    outfilen = f'/mnt/permanent/home/makrai/project/verb-tensor/pyconll/dataframe/freq{input_part}.pkl'
+    if os.path.exists(outfilen):
+        logging.info(f'File exists: {outfilen}')
+        return
     triples = []
     for filen in glob(f'/mnt/permanent/Language/English/Crawl/DepCC/corpus/parsed/part-m-*{input_part}.gz'):
         logging.info(filen)
@@ -72,8 +77,8 @@ def get_triples(input_part=9100):
                 triples.append(triple)
 
     df = pd.DataFrame(triples)
-    ser = df.groupby(list(df.columns)).size().sort_values(ascending=False)
-    ser.to_pickle(f'/mnt/permanent/home/makrai/project/verb-tensor/pyconll/dataframe/freq{input_part}.pkl')
+    df = df.groupby(list(df.columns)).size().sort_values(ascending=False)
+    df.to_frame(name='freq').to_pickle(outfilen)
 
 
 if __name__ == '__main__':
