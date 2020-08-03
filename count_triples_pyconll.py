@@ -3,6 +3,7 @@
 
 
 from collections import defaultdict
+import configparser
 from glob import glob
 import gzip
 import logging
@@ -50,7 +51,7 @@ def get_triples(input_part=9100):
         logging.info(f'File exists: {outfilen}')
         return
     triples = []
-    for filen in glob(f'/mnt/permanent/Language/English/Crawl/DepCC/corpus/parsed/part-m-*{input_part}.gz'):
+    for filen in sorted(glob(f'/mnt/permanent/Language/English/Crawl/DepCC/corpus/parsed/part-m-*{input_part}.gz')):
         logging.info(filen)
         for sent_str in depcc_to_conllu(filen):
             try:
@@ -78,6 +79,8 @@ def get_triples(input_part=9100):
 
     df = pd.DataFrame(triples)
     df = df.groupby(list(df.columns)).size().sort_values(ascending=False)
+    config = configparser.ConfigParser()
+    config.read('config.ini') 
     df.to_frame(name='freq').to_pickle(os.path.join(
         config['DEFAULT']['ProjectDirectory'],
         f'dataframe/freq{input_part}.pkl'))
