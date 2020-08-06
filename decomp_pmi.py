@@ -171,15 +171,16 @@ if __name__ == '__main__':
     decomposer = VerbTensor(args.input_part)
     if args.weight == 'for':
         logging.debug('')
-        for exp in range(1, 10):
-            args.rank = 2**exp#np.random.randint(1, 9)
-            for weight in weights: 
-                args.weight = weight#s[np.random.randint(0, len(weights))]
-                decomposer.decomp(weight=args.weight, cutoff=args.cutoff, rank=args.rank)
-    elif args.weight == 'rand':
-        while True:
-            args.rank = 2**np.random.randint(1, 9)
-            args.weight = weights[np.random.randint(0, len(weights))]
-            decomposer.decomp(weight=args.weight, cutoff=args.cutoff, rank=args.rank)
+        #for exp in range(1, 10):
+        #args.rank = 2**exp#np.random.randint(1, 9)
+        for weight in weights: 
+            args.weight = weight#s[np.random.randint(0, len(weights))]
+            decomposer.decomp(weight=args.weight, cutoff=args.cutoff,
+                              rank=args.rank)
+    #elif args.weight == 'rand':
+    #while True:
+    #args.rank = 2**np.random.randint(1, 9)
+    #args.weight = weights[np.random.randint(0, len(weights))]
+    #decomposer.decomp(weight=args.weight, cutoff=args.cutoff, rank=args.rank)
     else:
         decomposer.decomp(weight=args.weight, cutoff=args.cutoff, rank=args.rank)
