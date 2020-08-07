@@ -2,6 +2,7 @@
 # coding: utf-8
 
 from collections import defaultdict
+import configparser
 import numpy as np
 import operator
 import os
@@ -9,17 +10,17 @@ import pandas as pd
 import pickle
 
 import logging
-logging.basicConfig(level=logging.DEBUG,
-        format='%(levelname)-8s [%(lineno)d] %(message)s')
 
 
+config = configparser.ConfigParser()
+config.read('config.ini')
 tensor_dir = config['DEFAULT']['ProjectDirectory']+'tensor/0to4/'
 verb_sim_data_dir = '/mnt/permanent/Language/English/Data/verb-similarity/Sadrzadeh/'
 test_data_dir = '/mnt/permanent/Language/English/Data'
 consistent_name_d = {
     'log_freq': 'log_freq',
-    'pmi': 'pmi_vanl', 'iact_info': 'iact_vanl', 'log_dice': 'dice_vanl',
-    'npmi': 'pmi_norm', 'niact': 'iact_norm',
+    'pmi': 'pmi_vanl', 'iact_info': 'iact_vanl', 'log_dice': 'dice_vanl', # van
+    'npmi': 'pmi_norm', 'niact': 'iact_norm', # normed
     'salience': 'pmi_sali', 'iact_sali': 'iact_sali', 'dice_sali': 'dice_sali'}
 
 
@@ -132,6 +133,8 @@ def read_SimLex():
 
 
 if __name__ == '__main__':
+    logging.basicConfig(level=logging.DEBUG, 
+                        format='%(levelname)-8s [%(lineno)d] %(message)s')
     test_sim(read_ks().reset_index(), mode_to_test='svo')
     #test_sim(read_SimVerb().reset_index(), mode_to_test='ROOT')
     #test_sim(read_SimLex().reset_index(), mode_to_test='nsubj')
