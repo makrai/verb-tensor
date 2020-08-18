@@ -89,7 +89,7 @@ def test_sim(task_df0, cutoff=20, rank=256, mode_to_test='svo',
             task_df['{}_v'.format(query_w_col)] = series
         if mode_to_test == 'svo':
             for qwocs, svo_vc in [(query1_cols, 'svo1_v'),
-                                            (query2_cols, 'svo2_v')]:
+                                  (query2_cols, 'svo2_v')]:
                 qvecs = ['{}_v'.format(qwc) for qwc in list(zip(*qwocs))[1]]
                 task_df[svo_vc] = task_df[qvecs].apply(np.concatenate, axis=1)
         if normlz_vocb and mode_to_test == 'svo':
