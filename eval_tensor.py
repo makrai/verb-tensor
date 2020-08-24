@@ -24,9 +24,7 @@ consistent_name_d = {
     'salience': 'pmi_sali', 'iact_sali': 'iact_sali', 'dice_sali': 'dice_sali'}
 
 
-def test_sim(task_df0, cutoff=20, rank=256, mode_to_test='svo',
-             normlz_vocb=True, lmbda=False): 
-    modes = ['nsubj', 'ROOT', 'dobj']
+def get_cols(mode_to_test):
     if mode_to_test == 'svo':
         logging.info('Assuming df is Kartsaklis and Sadrzadeh Turk')
         query1_cols = list(enumerate(['subject1', 'verb1', 'object1']))
@@ -50,17 +48,24 @@ def test_sim(task_df0, cutoff=20, rank=256, mode_to_test='svo',
     else:
         raise Exception(
             'mode_to_test has to be eigther svo, nsubj, ROOT, or dobj')
+    return query1_cols, query2_cols, sim_col
+
+
+def test_sim(task_df0, cutoff=100, rank=256, mode_to_test='svo',
+             normlz_vocb=True, lmbda=False): 
+    modes = ['nsubj', 'ROOT', 'dobj']
     task_df = task_df0.copy() # Subj and obj sim not to go in the same df
+    query1_cols, query2_cols, sim_col = get_cols(mode_to_test)
     mean = task_df[sim_col].mean()
     for weight_oldname, weight_newname in consistent_name_d.items():
-        logging.info('Testing {}..'.format(weight_newname))
+        #logging.info('Testing {}..'.format(weight_newname))
         basen = 'sparstensr_{}_{}.pkl'.format(weight_oldname, cutoff)
         stensor, index = pickle.load(open(os.path.join(tensor_dir, basen),
                                           mode='rb'))
         #for exp in range(1, int(np.log2(max_rank))+1):
         #rank = 2**exp
         oov = defaultdict(int)
-        target_col = 'tensor_sim_{}_{}'.format(weight_newname, rank)
+        target_col = f'tensor_sim_{weight_newname}_{cutoff}_{rank}'
         try:
             basen = 'ktensor_{}_{}_{}.pkl'.format(weight_oldname, cutoff, rank)
             ktensor, fit, n_iterations, exectimes = pickle.load(open(
@@ -106,7 +111,7 @@ def test_sim(task_df0, cutoff=20, rank=256, mode_to_test='svo',
         task_df[target_col] = task_df[query_v_cols].apply(cell_dot_cell, axis=1)
         #if rank == max_rank:
         logging.debug(sorted(oov.items(), key=operator.itemgetter(1),
-                             everse=True)[:5])
+                             reverse=True)[:5])
         logging.debug(task_df.corr(method='spearman').loc[sim_col].sort_values())#ascending=False))
     return task_df.corr(method='spearman').loc[sim_col].sort_values(
         ascending=False)
