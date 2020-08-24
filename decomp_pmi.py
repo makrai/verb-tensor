@@ -24,7 +24,8 @@ class VerbTensor():
         config = configparser.ConfigParser()
         config.read('config.ini')
         self.project_dir = config['DEFAULT']['ProjectDirectory']
-        self.tensor_dir = os.path.join(self.project_dir, 'tensor', self.input_part)
+        self.tensor_dir = os.path.join(self.project_dir, 'tensor',
+                                       self.input_part)
         self.assoc_df_filen_patt = os.path.join(self.project_dir,
                                                 'dataframe/assoc{}.{}')
         self.modes = ['nsubj', 'ROOT', 'dobj']
@@ -98,7 +99,8 @@ class VerbTensor():
             self.sparse_tensor, self.index =  pickle.load(open(
                 self.sparse_filen, mode='rb'))
             return
-        if os.path.exists(self.assoc_df_filen_patt.format(self.input_part, 'pkl')):
+        if os.path.exists(self.assoc_df_filen_patt.format(self.input_part,
+                                                          'pkl')):
             logging.info('Reading association weights from '+
                          self.assoc_df_filen_patt.format(self.input_part, '.'))
             self.pmi_df = pd.read_pickle(
@@ -112,7 +114,7 @@ class VerbTensor():
         for mode in self.modes:
             marginal = -df.groupby(mode)['freq'].sum()
             self.index[mode] = bidict((w, i) for i, w in enumerate(
-                [np.nan] +
+                #[np.nan] +
                 list(marginal[marginal.argsort()].index)))
             df['{}_i'.format(mode)] = df[mode].apply(self.index[mode].get)
         logging.debug('Creating tensor (1/3)..')
@@ -177,10 +179,8 @@ if __name__ == '__main__':
             args.weight = weight#s[np.random.randint(0, len(weights))]
             decomposer.decomp(weight=args.weight, cutoff=args.cutoff,
                               rank=args.rank)
-    #elif args.weight == 'rand':
-    #while True:
-    #args.rank = 2**np.random.randint(1, 9)
-    #args.weight = weights[np.random.randint(0, len(weights))]
-    #decomposer.decomp(weight=args.weight, cutoff=args.cutoff, rank=args.rank)
-    else:
-        decomposer.decomp(weight=args.weight, cutoff=args.cutoff, rank=args.rank)
+    elif args.weight == 'rand':
+        #while True:
+        #args.rank = 2**np.random.randint(1, 9)
+        args.weight = weights[np.random.randint(0, len(weights))]
+    decomposer.decomp(weight=args.weight, cutoff=args.cutoff, rank=args.rank)
