@@ -136,10 +136,8 @@ class VerbTensor():
         if cutoff == 0:
             logging.warning('Not implemented, log(0)=?')
         logging.info((weight, rank, cutoff))
-        decomp_filen = os.path.join(
-            self.tensor_dir,
-            '{}_{}_{}_{}.pkl').format('ktensor', weight, cutoff,
-                                      rank)
+        decomp_filen = os.path.join(self.tensor_dir,
+                                    f'ktensor_{weight}_{cutoff}_{rank}.pkl')
         if os.path.exists(decomp_filen):
             logging.warning('File exists')
             return
@@ -152,7 +150,7 @@ class VerbTensor():
         pickle.dump(result, open(decomp_filen, mode='wb'))
 
 
-weights =  ['log_freq', 'pmi', 'iact_info', 'salience', 'iact_sali',
+weights =  ['freq', 'pmi', 'iact_info', 'salience', 'iact_sali',
             'log_dice', 'dice_sali', 'npmi', 'niact']
 
 def parse_args():
@@ -162,7 +160,7 @@ def parse_args():
         #default='log_freq',
     parser.add_argument('--cutoff', type=int, default=5)
     parser.add_argument('--rank', type=int)#, default=64)
-    parser.add_argument('--input-part', default='x0x', dest='input_part')
+    parser.add_argument('--input-part', default='', dest='input_part')
     return parser.parse_args()
 
 
