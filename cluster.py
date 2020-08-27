@@ -10,6 +10,7 @@ import re
 import hdbscan
 import numpy as np
 import sklearn
+import pandas as pd
 import pickle
 import random
 from sklearn.manifold import TSNE 
@@ -19,8 +20,6 @@ import urllib3
 import matplotlib.pyplot as plt
 
 import logging
-logging.basicConfig(level=logging.DEBUG,
-                    format='%(levelname)-8s [%(lineno)d] %(message)s')
 
 
 class ClusterVerbs():
@@ -32,7 +31,7 @@ class ClusterVerbs():
         self.metric = metric
         config = configparser.ConfigParser()
         config.read('config.ini')
-        tensor_dir = config['DEFAULT']['ProjectDirectory']+'tensor/0'
+        tensor_dir = config['DEFAULT']['ProjectDirectory']+'tensor'
         logging.info('Loading tensor and index..')
         self.ktensor, _, _, _ = pickle.load(open(os.path.join(
             tensor_dir,
@@ -59,7 +58,7 @@ class ClusterVerbs():
             boundaries = None
         plt.colorbar(ticks=boundaries, boundaries=boundaries)
 
-    def main(self):
+    def main(self, head=3000):
         logging.info('Mapping for visualization..')
         self.embed_visu = self.do_umap(2)
         logging.info('Mapping for clustering..')
@@ -69,9 +68,11 @@ class ClusterVerbs():
                                   min_samples=self.min_samples)
         # min_samples defaults to whatever min_cluster_size is set to
         logging.debug('')
-        self.labels = clusser.fit_predict(self.embed_clus)
-        return self.index, self.labels
+        self.labels = clusser.fit_predict(self.embed_clus[:head])
+        return pd.DataFrame(self.index['ROOT']).head(head), self.labels
 
 
 if __name__ == '__main__':
+    logging.basicConfig(level=logging.DEBUG, 
+                        format='%(levelname)-8s [%(lineno)d] %(message)s') 
     ClusterVerbs().main()
