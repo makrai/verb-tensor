@@ -32,8 +32,7 @@ class VerbTensor():
         # mazsola: ['NOM', 'stem', 'ACC']
 
     def append_pmi(self, write_tsv=False, positive=True):
-        filen = os.path.join(self.project_dir, 'dataframe/freq{}.pkl'.format(
-            self.input_part))
+        filen = os.path.join(self.project_dir, f'dataframe/freq{self.input_part}.pkl')
         logging.info(f'Reading freqs from {filen}')
         df = pd.read_pickle(filen)
         logging.info('Computing marginals..')
@@ -41,28 +40,28 @@ class VerbTensor():
         marginal2 = {mode_pair: df.groupby(list(mode_pair)).sum()
                      for mode_pair in itertools.combinations(self.modes, 2)}
         for mode in self.modes:
-            df = df.join(marginal[mode], on=mode, rsuffix='_{}'.format(mode))
+            df = df.join(marginal[mode], on=mode, rsuffix=f'_{mode}')
         for mode_pair in itertools.combinations(self.modes, 2):
             logging.debug(mode_pair)
             df = df.join(marginal2[mode_pair], on=mode_pair,
-                         rsuffix='_{}'.format(mode_pair))
+                         rsuffix=f'_{mode_pair}')
         logging.info('Computing association scores..')
         log_total = np.log2(df.freq.sum())
         i_marginal_start = 1 #if len(self.input_part) <= 2 else 4
         for name in df.columns[i_marginal_start:]:
             # Computing log-probabilities or 1- and 2-marginals
             # TODO cutoff == 0 -> log(0)
-            df['log_prob_{}'.format(name)] = np.log2(df[name])
-            df['log_prob_{}'.format(name)] -= log_total
+            df[f'log_prob_{name}'] = np.log2(df[name])
+            df[f'log_prob_{name}'] -= log_total
         df['log_freq'] = np.log2(df.freq)
         df['log_prob'] = df.log_freq - log_total
         df['pmi'] = df.log_prob
         df['iact_info'] = -df.log_prob
         for mode in self.modes:
-            df.pmi -= df['log_prob_freq_{}'.format(mode)]
-            df.iact_info -= df['log_prob_freq_{}'.format(mode)]
+            df.pmi -= df[f'log_prob_freq_{mode}']
+            df.iact_info -= df[f'log_prob_freq_{mode}']
         for mode_pair in itertools.combinations(self.modes, 2):
-            df.iact_info += df['log_prob_freq_{}'.format(mode_pair)]
+            df.iact_info += df[f'log_prob_freq_{mode_pair}']
         if positive:    
             df['0'] = 0
             df.pmi = df[['pmi', '0']].max(axis=1)
@@ -79,7 +78,7 @@ class VerbTensor():
         # This is only the numerator of Dice, and no logarithm at this point.
         df['dice_denom'] = 0
         for mode in self.modes:
-            df.dice_denom += df['freq_{}'.format(mode)]
+            df.dice_denom += df[f'freq_{mode}']
         df.log_dice /= df.dice_denom
         del df['dice_denom']
         df.log_dice = np.log2(df.log_dice)
@@ -109,16 +108,16 @@ class VerbTensor():
             self.pmi_df = self.append_pmi()
         self.pmi_df = self.pmi_df.reset_index()
         df = self.pmi_df[self.pmi_df.freq >= cutoff].copy()
-        logging.info('Preparing the index.. (weight={})'.format(weight))
+        logging.info(f'Preparing the index.. (weight={weight})')
         self.index = {}
         for mode in self.modes:
             marginal = -df.groupby(mode)['freq'].sum()
             self.index[mode] = bidict((w, i) for i, w in enumerate(
                 #[np.nan] +
                 list(marginal[marginal.argsort()].index)))
-            df['{}_i'.format(mode)] = df[mode].apply(self.index[mode].get)
+            df[f'{mode}_i'] = df[mode].apply(self.index[mode].get)
         logging.debug('Creating tensor (1/3)..')
-        coords = df[['{}_i'.format(mode)
+        coords = df[[f'{mode}_i'
                      for mode in self.modes]].T.to_records(index=False)
         logging.debug('Creating tensor (2/3)..')
         coords = tuple(map(list, coords))
