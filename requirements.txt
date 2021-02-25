@@ -1,0 +1,8 @@
+numpy>=1.17
+bidict
+configparser
+matplotlib
+pandas
+pyconll
+scipy
+tensorly
