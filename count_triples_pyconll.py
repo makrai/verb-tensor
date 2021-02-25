@@ -68,7 +68,7 @@ def get_triples(input_part=9100):
                 if token.deprel in ['nsubj', 'dobj']:
                     triples_in_sent[token.head][token.deprel] = token.lemma
 
-            # Collecting the verbs..
+            # Collecting the verbs, not only the main pred of the sentence.
             for id_form_1 in triples_in_sent:
                 triples_in_sent[id_form_1]['ROOT'] = sentence[int(id_form_1)].lemma
 
