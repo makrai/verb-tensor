@@ -1,4 +1,5 @@
-# verb-tensor: Verb sense induction with tensor decomposition
+# verb-tensor
+## Verb sense induction with tensor decomposition
 
 1. `count` triples in batches of files and `sum` them
     * debug_get_triple.ipynb
