@@ -5,6 +5,7 @@
 import argparse
 from bidict import bidict
 from collections import defaultdict
+import configparser
 import itertools
 import os
 import pandas as pd
@@ -20,8 +21,11 @@ import sktensor
 class VerbTensor():
     def __init__(self, input_part):
         self.input_part = input_part
-        self.project_dir = '/mnt/permanent/home/makrai/project/verb-tensor/verb'
-        self.tensor_dir = os.path.join(self.project_dir, 'tensor', self.input_part)
+        config = configparser.ConfigParser()
+        config.read('config.ini')
+        self.project_dir = config['DEFAULT']['ProjectDirectory']
+        self.tensor_dir = os.path.join(self.project_dir, 'tensor',
+                                       self.input_part)
         self.assoc_df_filen_patt = os.path.join(self.project_dir,
                                                 'dataframe/assoc{}.{}')
         self.modes = ['nsubj', 'ROOT', 'dobj']
@@ -30,7 +34,7 @@ class VerbTensor():
     def append_pmi(self, write_tsv=False, positive=True):
         filen = os.path.join(self.project_dir, 'dataframe/freq{}.pkl'.format(
             self.input_part))
-        logging.info('Reading freqs from {}'.format(filen))
+        logging.info(f'Reading freqs from {filen}')
         df = pd.read_pickle(filen)
         logging.info('Computing marginals..')
         marginal = {mode: df.groupby(mode).sum() for mode in self.modes}
@@ -95,9 +99,10 @@ class VerbTensor():
             self.sparse_tensor, self.index =  pickle.load(open(
                 self.sparse_filen, mode='rb'))
             return
-        if os.path.exists(self.assoc_df_filen_patt.format(self.input_part, 'pkl')):
-            logging.info('Reading association weights from {} {}..'.format(
-                self.assoc_df_filen_patt, self.input_part))
+        if os.path.exists(self.assoc_df_filen_patt.format(self.input_part,
+                                                          'pkl')):
+            logging.info('Reading association weights from '+
+                         self.assoc_df_filen_patt.format(self.input_part, '.'))
             self.pmi_df = pd.read_pickle(
                 self.assoc_df_filen_patt.format(self.input_part, 'pkl'))
         else:
@@ -109,7 +114,7 @@ class VerbTensor():
         for mode in self.modes:
             marginal = -df.groupby(mode)['freq'].sum()
             self.index[mode] = bidict((w, i) for i, w in enumerate(
-                [np.nan] +
+                #[np.nan] +
                 list(marginal[marginal.argsort()].index)))
             df['{}_i'.format(mode)] = df[mode].apply(self.index[mode].get)
         logging.debug('Creating tensor (1/3)..')
@@ -119,7 +124,9 @@ class VerbTensor():
         coords = tuple(map(list, coords))
         data = df[weight].values
         shape=tuple(len(self.index[mode]) for mode in self.modes)
-        logging.debug('Creating tensor (3/3) {}..'.format(shape))
+        logging.debug('Creating tensor (3/3) {}, {}..'.format(
+            ' x '.join(map(str, shape)),
+            len(np.nonzero(data)[0])))
         self.sparse_tensor = sktensor.sptensor(coords, data, shape=shape)
         pickle.dump((self.sparse_tensor, self.index), 
                     open(os.path.join(self.tensor_dir, self.sparse_filen),
@@ -129,10 +136,8 @@ class VerbTensor():
         if cutoff == 0:
             logging.warning('Not implemented, log(0)=?')
         logging.info((weight, rank, cutoff))
-        decomp_filen = os.path.join(
-            self.tensor_dir,
-            '{}_{}_{}_{}.pkl').format('ktensor', weight, cutoff,
-                                      rank)
+        decomp_filen = os.path.join(self.tensor_dir,
+                                    f'ktensor_{weight}_{cutoff}_{rank}.pkl')
         if os.path.exists(decomp_filen):
             logging.warning('File exists')
             return
@@ -145,13 +150,13 @@ class VerbTensor():
         pickle.dump(result, open(decomp_filen, mode='wb'))
 
 
-weights =  ['log_freq', 'pmi', 'iact_info', 'salience', 'iact_sali',
+weights =  ['freq', 'pmi', 'iact_info', 'salience', 'iact_sali',
             'log_dice', 'dice_sali', 'npmi', 'niact']
 
 def parse_args():
     parser = argparse.ArgumentParser(
         description='Decompose a tensor of verb and argument cooccurrences')
-    parser.add_argument('--weight', choices=['for']+weights)
+    parser.add_argument('--weight', choices=['for', 'rand']+weights)
         #default='log_freq',
     parser.add_argument('--cutoff', type=int, default=5)
     parser.add_argument('--rank', type=int)#, default=64)
@@ -166,10 +171,14 @@ if __name__ == '__main__':
     decomposer = VerbTensor(args.input_part)
     if args.weight == 'for':
         logging.debug('')
-        for exp in range(1, 10):
-            args.rank = 2**exp#np.random.randint(1, 9)
-            for weight in weights: 
-                args.weight = weight#s[np.random.randint(0, len(weights))]
-                decomposer.decomp(weight=args.weight, cutoff=args.cutoff, rank=args.rank)
-    else:
-        decomposer.decomp(weight=args.weight, cutoff=args.cutoff, rank=args.rank)
+        #for exp in range(1, 10):
+        #args.rank = 2**exp#np.random.randint(1, 9)
+        for weight in weights: 
+            args.weight = weight#s[np.random.randint(0, len(weights))]
+            decomposer.decomp(weight=args.weight, cutoff=args.cutoff,
+                              rank=args.rank)
+    elif args.weight == 'rand':
+        #while True:
+        #args.rank = 2**np.random.randint(1, 9)
+        args.weight = weights[np.random.randint(0, len(weights))]
+    decomposer.decomp(weight=args.weight, cutoff=args.cutoff, rank=args.rank)

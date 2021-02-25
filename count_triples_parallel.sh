@@ -1,7 +1,10 @@
-for j in 0 `seq 9`
+for i in 0 `seq 9`
 do 
-  for part in 0 `seq 9`
+  for k in 0 `seq 9`
   do 
-    time nice python count_triples_single_thread.py $j${part}
-  done & 
+    for j in 0 `seq 9`
+    do 
+      time nice python count_triples_pyconll.py $i$j$k
+    done 
+  done &
 done

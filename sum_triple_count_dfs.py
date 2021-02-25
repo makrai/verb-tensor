@@ -13,7 +13,7 @@ logging.basicConfig(level=logging.DEBUG,
                     format='%(levelname)-8s [%(lineno)d] %(message)s')
 
 
-df_dir = '/mnt/permanent/home/makrai/project/verb-tensor/verb/dataframe/'
+df_dir = config['DEFAULT']['ProjectDirectory']+'dataframe/'
 
 def sum_frames(common_suff):
     filen = os.path.join(df_dir, 'freq0{}.pkl').format(common_suff)

@@ -2,6 +2,7 @@
 # coding: utf-8
 
 from collections import defaultdict
+import configparser
 import numpy as np
 import operator
 import os
@@ -9,23 +10,21 @@ import pandas as pd
 import pickle
 
 import logging
-logging.basicConfig(level=logging.DEBUG,
-        format='%(levelname)-8s [%(lineno)d] %(message)s')
 
 
-tensor_dir = '/mnt/permanent/home/makrai/project/verb-tensor/verb/tensor/0to4/'
+config = configparser.ConfigParser()
+config.read('config.ini')
+tensor_dir = config['DEFAULT']['ProjectDirectory']+'tensor/'
 verb_sim_data_dir = '/mnt/permanent/Language/English/Data/verb-similarity/Sadrzadeh/'
 test_data_dir = '/mnt/permanent/Language/English/Data'
 consistent_name_d = {
-    'log_freq': 'log-freq',
-    'pmi': 'pmi-vanl', 'iact_info': 'iact-vanl', 'log_dice': 'dice-vanl',
-    'npmi': 'pmi-norm', 'niact': 'iact-norm',
-    'salience': 'pmi-sali', 'iact_sali': 'iact-sali', 'dice_sali': 'dice-sali'}
+    'freq': 'freq_vanl',
+    'pmi': 'pmi_vanl', 'iact_info': 'iact_vanl', 'log_dice': 'dice_vanl', # van
+    'npmi': 'pmi_norm', 'niact': 'iact_norm', # normed
+    'salience': 'pmi_sali', 'iact_sali': 'iact_sali', 'dice_sali': 'dice_sali'}
 
 
-def test_sim(task_df0, cutoff=20, max_rank=256, mode_to_test='svo',
-             normlz_vocb=True, lmbda=False): 
-    modes = ['nsubj', 'ROOT', 'dobj']
+def get_cols(mode_to_test):
     if mode_to_test == 'svo':
         logging.info('Assuming df is Kartsaklis and Sadrzadeh Turk')
         query1_cols = list(enumerate(['subject1', 'verb1', 'object1']))
@@ -49,64 +48,71 @@ def test_sim(task_df0, cutoff=20, max_rank=256, mode_to_test='svo',
     else:
         raise Exception(
             'mode_to_test has to be eigther svo, nsubj, ROOT, or dobj')
+    return query1_cols, query2_cols, sim_col
+
+
+def test_sim(task_df0, cutoff=100, rank=256, mode_to_test='svo',
+             normlz_vocb=True, lmbda=False): 
+    modes = ['nsubj', 'ROOT', 'dobj']
     task_df = task_df0.copy() # Subj and obj sim not to go in the same df
+    query1_cols, query2_cols, sim_col = get_cols(mode_to_test)
     mean = task_df[sim_col].mean()
     for weight_oldname, weight_newname in consistent_name_d.items():
-        logging.info('Testing {}..'.format(weight_newname))
+        #logging.info('Testing {}..'.format(weight_newname))
         basen = 'sparstensr_{}_{}.pkl'.format(weight_oldname, cutoff)
         stensor, index = pickle.load(open(os.path.join(tensor_dir, basen),
                                           mode='rb'))
-        for exp in range(1, int(np.log2(max_rank))+1):
-            rank = 2**exp
-            oov = defaultdict(int)
-            target_col = 'tensor_sim_{}_{}'.format(weight_newname, rank)
+        #for exp in range(1, int(np.log2(max_rank))+1):
+        #rank = 2**exp
+        oov = defaultdict(int)
+        target_col = f'tensor_sim_{weight_newname}_{cutoff}_{rank}'
+        try:
+            basen = 'ktensor_{}_{}_{}.pkl'.format(weight_oldname, cutoff, rank)
+            ktensor, fit, n_iterations, exectimes = pickle.load(open(
+                os.path.join(tensor_dir, basen), mode='rb'))
+        except FileNotFoundError as e:
+            logging.warning(e)
+            task_df[target_col] = mean
+            continue
+        if lmbda:
+            sq_lam = np.sqrt(np.apply_along_axis(np.linalg.norm, 0, ktensor.lmbda))
+            for mode_i in modes_used:
+                ktensor.U[mode_i] *= sq_lam
+        if normlz_vocb and mode_to_test != 'svo':
+            mode_i = query1_cols[0][0]
+            ktensor.U[mode_i] /= np.apply_along_axis(
+                np.linalg.norm, 1, ktensor.U[mode_i]).reshape((-1,1))
+        def lookup(word, mode_i=1):
             try:
-                basen = 'ktensor_{}_{}_{}.pkl'.format(weight_oldname, cutoff, rank)
-                ktensor, fit, n_iterations, exectimes = pickle.load(open(
-                    os.path.join(tensor_dir, basen), mode='rb'))
-            except FileNotFoundError as e:
-                logging.warning(e)
-                task_df[target_col] = mean
-                continue
-            if lmbda:
-                sq_lam = np.sqrt(np.apply_along_axis(np.linalg.norm, 0, ktensor.lmbda))
-                for mode_i in modes_used:
-                    ktensor.U[mode_i] *= sq_lam
-            if normlz_vocb and mode_to_test != 'svo':
-                mode_i = query1_cols[0][0]
-                ktensor.U[mode_i] /= np.apply_along_axis(
-                    np.linalg.norm, 1, ktensor.U[mode_i]).reshape((-1,1))
-            def lookup(word, mode_i=1):
-                try:
-                    return ktensor.U[mode_i][index[modes[mode_i]][word]]
-                except KeyError as e:
-                    oov[e.args] += 1
-                    return np.zeros(rank)
-            for mode_i, query_w_col in query1_cols + query2_cols:
-                series = task_df[query_w_col].apply( 
-                    lambda word: lookup(word, mode_i=mode_i))
-                task_df['{}_v'.format(query_w_col)] = series
-            if mode_to_test == 'svo':
-                for qwocs, svo_vc in [(query1_cols, 'svo1_v'),
-                                                (query2_cols, 'svo2_v')]:
-                    qvecs = ['{}_v'.format(qwc) for qwc in list(zip(*qwocs))[1]]
-                    task_df[svo_vc] = task_df[qvecs].apply(np.concatenate, axis=1)
-            if normlz_vocb and mode_to_test == 'svo':
-                for svo_vc in ['svo1_v', 'svo2_v']:
-                    task_df[svo_vc] /= task_df[svo_vc].apply(np.linalg.norm)
-            if mode_to_test == 'svo':
-                query_v_cols = ['svo1_v', 'svo2_v'] 
-            else:
-                query_v_cols = [
-                    '{}_v'.format(item[0][1]) 
-                                  for item in [query1_cols, query2_cols]]
-            def cell_dot_cell(series):
-                return series[0].dot(series[1])
-            task_df[target_col] = task_df[query_v_cols].apply(cell_dot_cell, axis=1)
-            if rank == max_rank:
-                logging.debug(sorted(oov.items(), key=operator.itemgetter(1),
-                                     reverse=True)[:5])
-            logging.debug(task_df.corr(method='spearman').loc[sim_col].sort_values())#ascending=False))
+                return ktensor.U[mode_i][index[modes[mode_i]][word]]
+            except KeyError as e:
+                oov[e.args] += 1
+                return np.zeros(rank)
+        for mode_i, query_w_col in query1_cols + query2_cols:
+            series = task_df[query_w_col].apply( 
+                lambda word: lookup(word, mode_i=mode_i))
+            task_df['{}_v'.format(query_w_col)] = series
+        if mode_to_test == 'svo':
+            for qwocs, svo_vc in [(query1_cols, 'svo1_v'),
+                                  (query2_cols, 'svo2_v')]:
+                qvecs = ['{}_v'.format(qwc) for qwc in list(zip(*qwocs))[1]]
+                task_df[svo_vc] = task_df[qvecs].apply(np.concatenate, axis=1)
+        if normlz_vocb and mode_to_test == 'svo':
+            for svo_vc in ['svo1_v', 'svo2_v']:
+                task_df[svo_vc] /= task_df[svo_vc].apply(np.linalg.norm)
+        if mode_to_test == 'svo':
+            query_v_cols = ['svo1_v', 'svo2_v'] 
+        else:
+            query_v_cols = [
+                '{}_v'.format(item[0][1]) 
+                              for item in [query1_cols, query2_cols]]
+        def cell_dot_cell(series):
+            return series[0].dot(series[1])
+        task_df[target_col] = task_df[query_v_cols].apply(cell_dot_cell, axis=1)
+        #if rank == max_rank:
+        logging.debug(sorted(oov.items(), key=operator.itemgetter(1),
+                             reverse=True)[:5])
+        logging.debug(task_df.corr(method='spearman').loc[sim_col].sort_values())#ascending=False))
     return task_df.corr(method='spearman').loc[sim_col].sort_values(
         ascending=False)
 
@@ -132,13 +138,15 @@ def read_SimLex():
 
 
 if __name__ == '__main__':
+    logging.basicConfig(level=logging.DEBUG, 
+                        format='%(levelname)-8s [%(lineno)d] %(message)s')
     test_sim(read_ks().reset_index(), mode_to_test='svo')
     #test_sim(read_SimVerb().reset_index(), mode_to_test='ROOT')
     #test_sim(read_SimLex().reset_index(), mode_to_test='nsubj')
     #test_sim(read_SimLex().reset_index(), mode_to_test='dobj')
 
 
-def predict_verb(target_df, weight, rank, cutoff=5, prec_at=1, log_oov=False):
+def predict_verb(target_df, weight, rank, cutoff=100, prec_at=1, log_oov=False):
     _, index = pickle.load(open(os.path.join(
         tensor_dir, 'sparstensr_{}_{}.pkl').format(weight, cutoff), mode='rb'))
     basen = 'ktensor_{}_{}_{}.pkl'.format(weight, cutoff, rank)
