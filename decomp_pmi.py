@@ -73,9 +73,9 @@ class VerbTensor():
         #logging.debug('Computing salience..')
         df['salience'] = df.pmi * df.log_freq
         df['iact_sali'] = df.iact_info * df.log_freq
+        
         #logging.debug('Computing Dice..')
         df['log_dice'] = 3 * df.freq
-        # This is only the numerator of Dice, and no logarithm at this point.
         df['dice_denom'] = 0
         for mode in self.modes:
             df.dice_denom += df[f'freq_{mode}']
@@ -83,9 +83,9 @@ class VerbTensor():
         del df['dice_denom']
         df.log_dice = np.log2(df.log_dice)
         df.log_dice -= df.log_dice.min()
+
         df['dice_sali'] = df.log_dice * df.log_freq
-        logging.info('Saving to {}{}..'.format(self.assoc_df_filen_patt,
-                                               self.input_part))
+        logging.info(f'Saving to {self.assoc_df_filen_patt}{self.input_part}..')
         df.to_pickle(self.assoc_df_filen_patt.format(self.input_part, 'pkl'))
         if write_tsv:
             df.to_csv(self.assoc_df_filen_patt.format(self.input_part, 'tsv'),
@@ -123,9 +123,9 @@ class VerbTensor():
         coords = tuple(map(list, coords))
         data = df[weight].values
         shape=tuple(len(self.index[mode]) for mode in self.modes)
-        logging.debug('Creating tensor (3/3) {}, {}..'.format(
-            ' x '.join(map(str, shape)),
-            len(np.nonzero(data)[0])))
+        logging.debug(
+            'Creating tensor (3/3) '
+            f'{' x '.join(map(str, shape))}, {len(np.nonzero(data)[0])}..')
         self.sparse_tensor = sktensor.sptensor(coords, data, shape=shape)
         pickle.dump((self.sparse_tensor, self.index), 
                     open(os.path.join(self.tensor_dir, self.sparse_filen),
@@ -142,7 +142,7 @@ class VerbTensor():
             return
         self.sparse_filen = os.path.join(
             self.tensor_dir,
-            '{}_{}_{}.pkl'.format('sparstensr', weight, cutoff))
+            f'sparstensr_{weight}_{cutoff}.pkl')
         self.get_sparse(weight, cutoff)
         logging.debug('Orth-ALS..')
         result = orth_als(self.sparse_tensor, rank)
