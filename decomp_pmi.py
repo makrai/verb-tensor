@@ -3,19 +3,19 @@
 
 
 import argparse
-from bidict import bidict
-from collections import defaultdict
-import configparser
 import itertools
 import os
-import pandas as pd
 import pickle
 import logging
-import lzma
 
+from bidict import bidict
+import configparser
 import numpy as np
-from cp_orth import orth_als
-import sktensor
+import pandas as pd
+import sparse
+import tensorly as tl
+from tensorly.contrib.sparse import tensor
+from tensorly.contrib.sparse.decomposition import parafac
 
 
 class VerbTensor():
@@ -42,7 +42,7 @@ class VerbTensor():
         for mode in self.modes:
             df = df.join(marginal[mode], on=mode, rsuffix=f'_{mode}')
         for mode_pair in itertools.combinations(self.modes, 2):
-            logging.debug(mode_pair)
+            logging.info(mode_pair)
             df = df.join(marginal2[mode_pair], on=mode_pair,
                          rsuffix=f'_{mode_pair}')
         logging.info('Computing association scores..')
@@ -115,18 +115,19 @@ class VerbTensor():
             self.index[mode] = bidict((w, i) for i, w in enumerate(
                 #[np.nan] +
                 list(marginal[marginal.argsort()].index)))
-            df[f'{mode}_i'] = df[mode].apply(self.index[mode].get)
-        logging.debug('Creating tensor (1/3)..')
-        coords = df[[f'{mode}_i'
+            df[f'{mode}_ind'] = df[mode].apply(self.index[mode].get)
+        logging.info('Creating tensor (1/3)..')
+        coords = df[[f'{mode}_ind'
                      for mode in self.modes]].T.to_records(index=False)
-        logging.debug('Creating tensor (2/3)..')
+        logging.info('Creating tensor (2/3)..')
         coords = tuple(map(list, coords))
         data = df[weight].values
         shape=tuple(len(self.index[mode]) for mode in self.modes)
-        logging.debug(
-            'Creating tensor (3/3) '
-            f'{' x '.join(map(str, shape))}, {len(np.nonzero(data)[0])}..')
-        self.sparse_tensor = sktensor.sptensor(coords, data, shape=shape)
+        logging.info(
+            'Creating tensor with shape {} and {} nonzeros..  (3/3)'.format(
+                ' x '.join(map(str, shape)),
+                len(np.nonzero(data)[0])))
+        self.sparse_tensor = sparse.COO(coords, data, shape=shape)
         pickle.dump((self.sparse_tensor, self.index), 
                     open(os.path.join(self.tensor_dir, self.sparse_filen),
                          mode='wb'))
@@ -144,12 +145,13 @@ class VerbTensor():
             self.tensor_dir,
             f'sparstensr_{weight}_{cutoff}.pkl')
         self.get_sparse(weight, cutoff)
-        logging.debug('Orth-ALS..')
-        result = orth_als(self.sparse_tensor, rank)
+        tl.set_backend('tensorflow')
+        logging.info(f'Decomposition.. {tl.get_backend()}')
+        result = parafac(self.sparse_tensor, rank=rank)
         pickle.dump(result, open(decomp_filen, mode='wb'))
 
 
-weights =  ['freq', 'pmi', 'iact_info', 'salience', 'iact_sali',
+weights =  ['freq', 'log_freq', 'pmi', 'iact_info', 'salience', 'iact_sali',
             'log_dice', 'dice_sali', 'npmi', 'niact']
 
 def parse_args():
@@ -164,12 +166,12 @@ def parse_args():
 
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.DEBUG,
+    logging.basicConfig(level=logging.INFO,
                         format='%(levelname)-8s [%(lineno)d] %(message)s')
     args = parse_args()
     decomposer = VerbTensor(args.input_part)
     if args.weight == 'for':
-        logging.debug('')
+        logging.info('')
         #for exp in range(1, 10):
         #args.rank = 2**exp#np.random.randint(1, 9)
         for weight in weights: 
