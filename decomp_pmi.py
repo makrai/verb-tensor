@@ -145,13 +145,14 @@ class VerbTensor():
         logging.info((weight, rank, cutoff))
         decomp_filen = os.path.join(self.tensor_dir,
                                     f'ktensor_{weight}_{cutoff}_{rank}.pkl')
-        if False:#os.path.exists(decomp_filen):
+        if os.path.exists(decomp_filen):
             logging.warning('File exists')
             return
         self.get_sparse(weight, cutoff)
         tl.set_backend('pytorch')
         logging.info(f'Decomposition.. {tl.get_backend()}')
-        sparse_tensor = tensor(self.sparse_tensor)#, device='cuda:0')
+        sparse_tensor = tensor(self.sparse_tensor)
+        # device='cuda:0'. Dense is faster on CPU.
         result = parafac(sparse_tensor, rank=rank)
         pickle.dump(result, open(decomp_filen, mode='wb'))
 
