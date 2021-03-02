@@ -151,7 +151,7 @@ class VerbTensor():
         self.get_sparse(weight, cutoff)
         tl.set_backend('pytorch')
         logging.info(f'Decomposition.. {tl.get_backend()}')
-        sparse_tensor = tl.tensor(self.sparse_tensor, device='cuda:0')
+        sparse_tensor = tl.tensor(self.sparse_tensor)#, device='cuda:0')
         result = parafac(sparse_tensor, rank=rank)
         pickle.dump(result, open(decomp_filen, mode='wb'))
 
