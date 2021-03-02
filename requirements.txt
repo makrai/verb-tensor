@@ -1,8 +1,9 @@
-numpy>=1.17
 bidict
 configparser
 matplotlib
+numpy>=1.17
 pandas
 pyconll
 scipy
+sparse
 tensorly

@@ -14,8 +14,12 @@ import numpy as np
 import pandas as pd
 import sparse
 import tensorly as tl
-from tensorly.contrib.sparse import tensor
-from tensorly.contrib.sparse.decomposition import parafac
+
+# Use two of the following four
+#from tensorly.contrib.sparse import tensor
+#from tensorly.contrib.sparse.decomposition import parafac
+from tensorly import tensor
+from tensorly.decomposition import parafac
 
 
 class VerbTensor():
@@ -93,6 +97,9 @@ class VerbTensor():
         return df
 
     def get_sparse(self, weight, cutoff):
+        self.sparse_filen = os.path.join( 
+            self.tensor_dir,
+            f'sparstensr_{weight}_{cutoff}.pkl')
         if os.path.exists(self.sparse_filen):
             logging.info('Loading tensor..')
             self.sparse_tensor, self.index =  pickle.load(open(
@@ -138,16 +145,14 @@ class VerbTensor():
         logging.info((weight, rank, cutoff))
         decomp_filen = os.path.join(self.tensor_dir,
                                     f'ktensor_{weight}_{cutoff}_{rank}.pkl')
-        if os.path.exists(decomp_filen):
+        if False:#os.path.exists(decomp_filen):
             logging.warning('File exists')
             return
-        self.sparse_filen = os.path.join(
-            self.tensor_dir,
-            f'sparstensr_{weight}_{cutoff}.pkl')
         self.get_sparse(weight, cutoff)
-        tl.set_backend('tensorflow')
+        tl.set_backend('pytorch')
         logging.info(f'Decomposition.. {tl.get_backend()}')
-        result = parafac(self.sparse_tensor, rank=rank)
+        sparse_tensor = tl.tensor(self.sparse_tensor, device='cuda:0')
+        result = parafac(sparse_tensor, rank=rank)
         pickle.dump(result, open(decomp_filen, mode='wb'))
 
 
