@@ -17,7 +17,7 @@ import tensorly as tl
 
 # Use two of the following four
 #from tensorly.contrib.sparse import tensor
-#from tensorly.contrib.sparse.decomposition import parafac
+from tensorly.contrib.sparse.decomposition import tucker, non_negative_tucker
 from tensorly import tensor
 from tensorly.decomposition import parafac
 
@@ -28,15 +28,16 @@ class VerbTensor():
         config = configparser.ConfigParser()
         config.read('config.ini')
         self.project_dir = config['DEFAULT']['ProjectDirectory']
-        self.tensor_dir = os.path.join(self.project_dir, 'tensor',
-                                       self.input_part)
+        self.tensor_dir = os.path.join(
+                self.project_dir, 'tensor', self.input_part)
         self.assoc_df_filen_patt = os.path.join(self.project_dir,
                                                 'dataframe/assoc{}.{}')
         self.modes = ['nsubj', 'ROOT', 'dobj']
         # mazsola: ['NOM', 'stem', 'ACC']
 
     def append_pmi(self, write_tsv=False, positive=True):
-        filen = os.path.join(self.project_dir, f'dataframe/freq{self.input_part}.pkl')
+        filen = os.path.join(self.project_dir,
+                             f'dataframe/freq{self.input_part}.pkl')
         logging.info(f'Reading freqs from {filen}')
         df = pd.read_pickle(filen)
         logging.info('Computing marginals..')
@@ -66,7 +67,7 @@ class VerbTensor():
             df.iact_info -= df[f'log_prob_freq_{mode}']
         for mode_pair in itertools.combinations(self.modes, 2):
             df.iact_info += df[f'log_prob_freq_{mode_pair}']
-        if positive:    
+        if positive:
             df['0'] = 0
             df.pmi = df[['pmi', '0']].max(axis=1)
             df.iact_info = df[['iact_info', '0']].max(axis=1)
@@ -77,7 +78,7 @@ class VerbTensor():
         #logging.debug('Computing salience..')
         df['salience'] = df.pmi * df.log_freq
         df['iact_sali'] = df.iact_info * df.log_freq
-        
+
         #logging.debug('Computing Dice..')
         df['log_dice'] = 3 * df.freq
         df['dice_denom'] = 0
@@ -97,7 +98,7 @@ class VerbTensor():
         return df
 
     def get_sparse(self, weight, cutoff):
-        self.sparse_filen = os.path.join( 
+        self.sparse_filen = os.path.join(
             self.tensor_dir,
             f'sparstensr_{weight}_{cutoff}.pkl')
         if os.path.exists(self.sparse_filen):
@@ -135,25 +136,36 @@ class VerbTensor():
                 ' x '.join(map(str, shape)),
                 len(np.nonzero(data)[0])))
         self.sparse_tensor = sparse.COO(coords, data, shape=shape)
-        pickle.dump((self.sparse_tensor, self.index), 
+        pickle.dump((self.sparse_tensor, self.index),
                     open(os.path.join(self.tensor_dir, self.sparse_filen),
                          mode='wb'))
 
-    def decomp(self, weight, cutoff, rank):
+    def decomp(self, weight, cutoff, rank, do_tucker, non_negative):
         if cutoff == 0:
             logging.warning('Not implemented, log(0)=?')
         logging.info((weight, rank, cutoff))
+        algo = 'non_negative_' if non_negative else '' 
+        algo += 'tucker' if do_tucker else 'kruskal'
         decomp_filen = os.path.join(self.tensor_dir,
-                                    f'ktensor_{weight}_{cutoff}_{rank}.pkl')
+                                    f'{algo}_{weight}_{cutoff}_{rank}.pkl')
         if os.path.exists(decomp_filen):
             logging.warning('File exists')
             return
         self.get_sparse(weight, cutoff)
-        tl.set_backend('pytorch')
-        logging.info(f'Decomposition.. {tl.get_backend()}')
-        sparse_tensor = tensor(self.sparse_tensor)
-        # device='cuda:0'. Dense is faster on CPU.
-        result = parafac(sparse_tensor, rank=rank)
+        logging.info(self.sparse_tensor.shape)
+        logging.info(f'Decomposition..')
+        if do_tucker:
+            rank = map(int, rank.split(',')) if ',' in rank else int(rank)
+            if non_negative:
+                result = non_negative_tucker(self.sparse_tensor, rank=rank)
+            else:
+                result = tucker(self.sparse_tensor, rank=rank)
+        else:
+            if non_negative:
+                raise NotImplementedError
+            #tl.set_backend('pytorch')
+            result = parafac(tensor(self.sparse_tensor.todense()), rank=int(rank))
+        # tensor(.., device='cuda:0')
         pickle.dump(result, open(decomp_filen, mode='wb'))
 
 
@@ -166,8 +178,10 @@ def parse_args():
     parser.add_argument('--weight', choices=['for', 'rand']+weights)
         #default='log_freq',
     parser.add_argument('--cutoff', type=int, default=5)
-    parser.add_argument('--rank', type=int)#, default=64)
+    parser.add_argument('--rank')
     parser.add_argument('--input-part', default='', dest='input_part')
+    parser.add_argument('--tucker', action='store_true')
+    parser.add_argument('--non_negative', action='store_true')
     return parser.parse_args()
 
 
@@ -180,12 +194,15 @@ if __name__ == '__main__':
         logging.info('')
         #for exp in range(1, 10):
         #args.rank = 2**exp#np.random.randint(1, 9)
-        for weight in weights: 
+        for weight in weights:
             args.weight = weight#s[np.random.randint(0, len(weights))]
             decomposer.decomp(weight=args.weight, cutoff=args.cutoff,
-                              rank=args.rank)
+                              rank=args.rank, do_tucker=args.tucker,
+                              non_negative=args.non_negative)
     elif args.weight == 'rand':
         #while True:
         #args.rank = 2**np.random.randint(1, 9)
         args.weight = weights[np.random.randint(0, len(weights))]
-    decomposer.decomp(weight=args.weight, cutoff=args.cutoff, rank=args.rank)
+    decomposer.decomp(
+            weight=args.weight, cutoff=args.cutoff, rank=args.rank,
+            do_tucker=args.tucker, non_negative=args.non_negative)
