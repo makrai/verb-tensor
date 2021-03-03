@@ -28,8 +28,8 @@ class VerbTensor():
         config = configparser.ConfigParser()
         config.read('config.ini')
         self.project_dir = config['DEFAULT']['ProjectDirectory']
-        self.tensor_dir = os.path.join(
-                self.project_dir, 'tensor', self.input_part)
+        self.tensor_dir = os.path.join(self.project_dir, 'tensor',
+                                       self.input_part)
         self.assoc_df_filen_patt = os.path.join(self.project_dir,
                                                 'dataframe/assoc{}.{}')
         self.modes = ['nsubj', 'ROOT', 'dobj']
@@ -94,7 +94,7 @@ class VerbTensor():
         df.to_pickle(self.assoc_df_filen_patt.format(self.input_part, 'pkl'))
         if write_tsv:
             df.to_csv(self.assoc_df_filen_patt.format(self.input_part, 'tsv'),
-                             sep='\t', index=False, float_format='%.5g')
+                      sep='\t', index=False, float_format='%.5g')
         return df
 
     def get_sparse(self, weight, cutoff):
@@ -191,7 +191,6 @@ if __name__ == '__main__':
     args = parse_args()
     decomposer = VerbTensor(args.input_part)
     if args.weight == 'for':
-        logging.info('')
         #for exp in range(1, 10):
         #args.rank = 2**exp#np.random.randint(1, 9)
         for weight in weights:
