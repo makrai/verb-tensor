@@ -18,6 +18,8 @@ import tensorly as tl
 # Use two of the following four
 #from tensorly.contrib.sparse import tensor
 from tensorly.contrib.sparse.decomposition import tucker, non_negative_tucker
+# Non-neg Tucker seems slow. 
+# I didn't find out, how to use parafac on sparse.
 from tensorly import tensor
 from tensorly.decomposition import parafac
 
