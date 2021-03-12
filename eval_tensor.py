@@ -15,8 +15,8 @@ import logging
 config = configparser.ConfigParser()
 config.read('config.ini')
 tensor_dir = config['DEFAULT']['ProjectDirectory']+'tensor/'
-verb_sim_data_dir = '/mnt/permanent/Language/English/Data/verb-similarity/Sadrzadeh/'
-test_data_dir = '/mnt/permanent/Language/English/Data'
+test_data_dir = '/mnt/permanent/Language/English/Data/'
+verb_sim_data_dir = f'{test_data_dir}verb-similarity/Sadrzadeh/'
 consistent_name_d = {
     'freq': 'freq_vanl',
     'pmi': 'pmi_vanl', 'iact_info': 'iact_vanl', 'log_dice': 'dice_vanl', # van
@@ -52,7 +52,7 @@ def get_cols(mode_to_test):
 
 
 def test_sim(task_df0, cutoff=100, rank=256, mode_to_test='svo',
-             normlz_vocb=True, lmbda=False): 
+             normlz_vocb=True, lmbda=False, decomp_alog='ktensor'): 
     modes = ['nsubj', 'ROOT', 'dobj']
     task_df = task_df0.copy() # Subj and obj sim not to go in the same df
     query1_cols, query2_cols, sim_col = get_cols(mode_to_test)
@@ -62,12 +62,10 @@ def test_sim(task_df0, cutoff=100, rank=256, mode_to_test='svo',
         basen = 'sparstensr_{}_{}.pkl'.format(weight_oldname, cutoff)
         stensor, index = pickle.load(open(os.path.join(tensor_dir, basen),
                                           mode='rb'))
-        #for exp in range(1, int(np.log2(max_rank))+1):
-        #rank = 2**exp
         oov = defaultdict(int)
         target_col = f'tensor_sim_{weight_newname}_{cutoff}_{rank}'
         try:
-            basen = 'ktensor_{}_{}_{}.pkl'.format(weight_oldname, cutoff, rank)
+            basen = f'{decomp_alog}_{weight_oldname}_{cutoff}_{rank}.pkl'
             ktensor, fit, n_iterations, exectimes = pickle.load(open(
                 os.path.join(tensor_dir, basen), mode='rb'))
         except FileNotFoundError as e:
@@ -95,7 +93,7 @@ def test_sim(task_df0, cutoff=100, rank=256, mode_to_test='svo',
         if mode_to_test == 'svo':
             for qwocs, svo_vc in [(query1_cols, 'svo1_v'),
                                   (query2_cols, 'svo2_v')]:
-                qvecs = ['{}_v'.format(qwc) for qwc in list(zip(*qwocs))[1]]
+                qvecs = [f'{qwc}_v' for qwc[1] in qwocs]
                 task_df[svo_vc] = task_df[qvecs].apply(np.concatenate, axis=1)
         if normlz_vocb and mode_to_test == 'svo':
             for svo_vc in ['svo1_v', 'svo2_v']:
@@ -103,18 +101,16 @@ def test_sim(task_df0, cutoff=100, rank=256, mode_to_test='svo',
         if mode_to_test == 'svo':
             query_v_cols = ['svo1_v', 'svo2_v'] 
         else:
-            query_v_cols = [
-                '{}_v'.format(item[0][1]) 
-                              for item in [query1_cols, query2_cols]]
+            query_v_cols = [f'{item[0][1]}_v' 
+                            for item in [query1_cols, query2_cols]]
         def cell_dot_cell(series):
             return series[0].dot(series[1])
         task_df[target_col] = task_df[query_v_cols].apply(cell_dot_cell, axis=1)
-        #if rank == max_rank:
         logging.debug(sorted(oov.items(), key=operator.itemgetter(1),
                              reverse=True)[:5])
-        logging.debug(task_df.corr(method='spearman').loc[sim_col].sort_values())#ascending=False))
-    return task_df.corr(method='spearman').loc[sim_col].sort_values(
-        ascending=False)
+        sim_corr = task_df.corr(method='spearman').loc[sim_col].sort_values(ascending=False)
+        logging.debug(sim_col)
+    return sim_col
 
 
 def read_sim_data(filen):
@@ -135,16 +131,6 @@ def read_SimVerb():
 def read_SimLex():
     return pd.read_csv(os.path.join(test_data_dir,
                                     'SimLex-999/SimLex-999.txt'), sep='\t')
-
-
-if __name__ == '__main__':
-    logging.basicConfig(level=logging.DEBUG, 
-                        format='%(levelname)-8s [%(lineno)d] %(message)s')
-    test_sim(read_ks().reset_index(), mode_to_test='svo')
-    #test_sim(read_SimVerb().reset_index(), mode_to_test='ROOT')
-    #test_sim(read_SimLex().reset_index(), mode_to_test='nsubj')
-    #test_sim(read_SimLex().reset_index(), mode_to_test='dobj')
-
 
 def predict_verb(target_df, weight, rank, cutoff=100, prec_at=1, log_oov=False):
     _, index = pickle.load(open(os.path.join(
@@ -200,3 +186,12 @@ def df_columns_from_filen(sim_df, verb=True):
     sim_df = sim_df.drop(labels=[0])
     sim_df =sim_df[sim_df.isna().sum(axis=1)==0]
     return sim_df.sort_values('sim' if verb else 'SimLex999', ascending=False)
+
+
+if __name__ == '__main__':
+    logging.basicConfig(level=logging.DEBUG, 
+                        format='%(levelname)-8s [%(lineno)d] %(message)s')
+    test_sim(read_ks().reset_index(), mode_to_test='svo')
+    #test_sim(read_SimVerb().reset_index(), mode_to_test='ROOT')
+    #test_sim(read_SimLex().reset_index(), mode_to_test='nsubj')
+    #test_sim(read_SimLex().reset_index(), mode_to_test='dobj')
