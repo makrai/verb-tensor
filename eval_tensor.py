@@ -3,14 +3,14 @@
 
 from collections import defaultdict
 import configparser
+import logging
 import numpy as np
 import operator
 import os
 import pandas as pd
-import pickle
+import pickle 
 
-import logging
-
+import bidict
 
 config = configparser.ConfigParser()
 config.read('config.ini')
@@ -26,22 +26,22 @@ consistent_name_d = {
 
 def get_cols(mode_to_test):
     if mode_to_test == 'svo':
-        logging.info('Assuming df is Kartsaklis and Sadrzadeh Turk')
+        #logging.info('Assuming df is Kartsaklis and Sadrzadeh Turk')
         query1_cols = list(enumerate(['subject1', 'verb1', 'object1']))
         query2_cols = list(enumerate(['subject2', 'verb2', 'object2']))
         sim_col = 'score' 
     elif mode_to_test == 'ROOT':
-        logging.info('Assuming df is SimVerb')
+        #logging.info('Assuming df is SimVerb')
         query1_cols = [(1, 'verb1')]
         query2_cols = [(1, 'verb2')]
         sim_col = 'sim' 
     elif mode_to_test == 'nsubj': 
-        logging.info('Assuming df is SimLex')
+        #logging.info('Assuming df is SimLex')
         query1_cols = [(0, 'word1')]
         query2_cols = [(0, 'word2')]
         sim_col = 'SimLex999' 
     elif mode_to_test == 'dobj': 
-        logging.info('Assuming df is SimLex')
+        #logging.info('Assuming df is SimLex')
         query1_cols = [(2, 'word1')]
         query2_cols = [(2, 'word2')]
         sim_col = 'SimLex999' 
@@ -52,65 +52,70 @@ def get_cols(mode_to_test):
 
 
 def test_sim(task_df0, cutoff=100, rank=256, mode_to_test='svo',
-             normlz_vocb=True, lmbda=False, decomp_alog='ktensor'): 
+             normlz_vocb=True, lmbda=False, decomp_algo='tucker',
+             weight_name='log_freq'): 
     modes = ['nsubj', 'ROOT', 'dobj']
     task_df = task_df0.copy() # Subj and obj sim not to go in the same df
     query1_cols, query2_cols, sim_col = get_cols(mode_to_test)
     mean = task_df[sim_col].mean()
-    for weight_oldname, weight_newname in consistent_name_d.items():
-        #logging.info('Testing {}..'.format(weight_newname))
-        basen = 'sparstensr_{}_{}.pkl'.format(weight_oldname, cutoff)
-        stensor, index = pickle.load(open(os.path.join(tensor_dir, basen),
-                                          mode='rb'))
-        oov = defaultdict(int)
-        target_col = f'tensor_sim_{weight_newname}_{cutoff}_{rank}'
+    basen = 'sparstensr_{}_{}.pkl'.format(weight_name, cutoff)
+    stensor, index = pickle.load(open(os.path.join(tensor_dir, basen),
+                                      mode='rb'))
+    oov = defaultdict(int)
+    target_col = f'tensor_sim'#_{weight_name}_{cutoff}_{rank}'
+    try:
+        basen = f'{decomp_algo}_{weight_name}_{cutoff}_{rank}.pkl'
+        x = pickle.load(open( os.path.join(tensor_dir, basen), mode='rb'))
+        if decomp_algo == 'tucker':
+            decomped_tns = x
+        else: # 'decomp_algo' == 'ktensor'
+            decomped_tns, fit, n_iterations, exectimes = x
+    except FileNotFoundError as e:
+        #logging.warning(e)
+        task_df[target_col] = mean
+    if decomp_algo == 'tucker':
+        factors = decomped_tns.factors 
+    else: # decomp_algo == 'ktensor'
+        factors = decomped_tns.U
+    if lmbda:
+        sq_lam = np.sqrt(np.apply_along_axis(np.linalg.norm, 0, decomped_tns.lmbda))
+        for mode_i in modes_used:
+            factors[mode_i] *= sq_lam
+    if normlz_vocb and mode_to_test != 'svo':
+        mode_i = query1_cols[0][0]
+        factors[mode_i] /= np.apply_along_axis(
+            np.linalg.norm, 1, factors[mode_i]).reshape((-1,1))
+    def lookup(word, mode_i=1):
         try:
-            basen = f'{decomp_alog}_{weight_oldname}_{cutoff}_{rank}.pkl'
-            ktensor, fit, n_iterations, exectimes = pickle.load(open(
-                os.path.join(tensor_dir, basen), mode='rb'))
-        except FileNotFoundError as e:
-            logging.warning(e)
-            task_df[target_col] = mean
-            continue
-        if lmbda:
-            sq_lam = np.sqrt(np.apply_along_axis(np.linalg.norm, 0, ktensor.lmbda))
-            for mode_i in modes_used:
-                ktensor.U[mode_i] *= sq_lam
-        if normlz_vocb and mode_to_test != 'svo':
-            mode_i = query1_cols[0][0]
-            ktensor.U[mode_i] /= np.apply_along_axis(
-                np.linalg.norm, 1, ktensor.U[mode_i]).reshape((-1,1))
-        def lookup(word, mode_i=1):
-            try:
-                return ktensor.U[mode_i][index[modes[mode_i]][word]]
-            except KeyError as e:
-                oov[e.args] += 1
-                return np.zeros(rank)
-        for mode_i, query_w_col in query1_cols + query2_cols:
-            series = task_df[query_w_col].apply( 
-                lambda word: lookup(word, mode_i=mode_i))
-            task_df['{}_v'.format(query_w_col)] = series
-        if mode_to_test == 'svo':
-            for qwocs, svo_vc in [(query1_cols, 'svo1_v'),
-                                  (query2_cols, 'svo2_v')]:
-                qvecs = [f'{qwc}_v' for qwc[1] in qwocs]
-                task_df[svo_vc] = task_df[qvecs].apply(np.concatenate, axis=1)
-        if normlz_vocb and mode_to_test == 'svo':
-            for svo_vc in ['svo1_v', 'svo2_v']:
-                task_df[svo_vc] /= task_df[svo_vc].apply(np.linalg.norm)
-        if mode_to_test == 'svo':
-            query_v_cols = ['svo1_v', 'svo2_v'] 
-        else:
-            query_v_cols = [f'{item[0][1]}_v' 
-                            for item in [query1_cols, query2_cols]]
-        def cell_dot_cell(series):
-            return series[0].dot(series[1])
-        task_df[target_col] = task_df[query_v_cols].apply(cell_dot_cell, axis=1)
-        logging.debug(sorted(oov.items(), key=operator.itemgetter(1),
-                             reverse=True)[:5])
-        sim_corr = task_df.corr(method='spearman').loc[sim_col].sort_values(ascending=False)
-        logging.debug(sim_col)
-    return sim_col
+            return factors[mode_i][index[modes[mode_i]][word]]
+        except KeyError as e:
+            oov[e.args] += 1
+            return np.zeros(rank)
+    for mode_i, query_w_col in query1_cols + query2_cols:
+        series = task_df[query_w_col].apply( 
+            lambda word: lookup(word, mode_i=mode_i))
+        task_df['{}_v'.format(query_w_col)] = series
+    if mode_to_test == 'svo':
+        for qwocs, svo_vc in [(query1_cols, 'svo1_v'),
+                              (query2_cols, 'svo2_v')]:
+            qvecs = [f'{qwc}_v' for qwc[1] in qwocs]
+            task_df[svo_vc] = task_df[qvecs].apply(np.concatenate, axis=1)
+    if normlz_vocb and mode_to_test == 'svo':
+        for svo_vc in ['svo1_v', 'svo2_v']:
+            task_df[svo_vc] /= task_df[svo_vc].apply(np.linalg.norm)
+    if mode_to_test == 'svo':
+        query_v_cols = ['svo1_v', 'svo2_v'] 
+    else:
+        query_v_cols = [f'{item[0][1]}_v' 
+                        for item in [query1_cols, query2_cols]]
+    def cell_dot_cell(series):
+        return series[0].dot(series[1])
+    task_df[target_col] = task_df[query_v_cols].apply(cell_dot_cell, axis=1)
+    logging.debug(sorted(oov.items(), key=operator.itemgetter(1),
+                         reverse=True)[:5])
+    sim_corr = task_df.corr(method='spearman').loc[sim_col].sort_values(ascending=False)
+    logging.debug(sim_corr)
+    return sim_corr
 
 
 def read_sim_data(filen):
