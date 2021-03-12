@@ -171,8 +171,8 @@ class VerbTensor():
         pickle.dump(result, open(decomp_filen, mode='wb'))
 
 
-weights =  ['freq', 'log_freq', 'pmi', 'iact_info', 'salience', 'iact_sali',
-            'log_dice', 'dice_sali', 'npmi', 'niact']
+weights =  ['log_freq', 'pmi', 'iact_info', 'salience', 'iact_sali',
+            'log_dice', 'dice_sali', 'npmi', 'niact'] # freq TODO
 
 def parse_args():
     parser = argparse.ArgumentParser(
