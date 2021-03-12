@@ -51,7 +51,7 @@ def get_cols(mode_to_test):
     return query1_cols, query2_cols, sim_col
 
 
-def test_sim(task_df0, cutoff=100, rank=256, mode_to_test='svo',
+def test_sim(task_df0, cutoff=2000, rank=128, mode_to_test='svo',
              normlz_vocb=True, lmbda=False, decomp_algo='tucker',
              weight_name='log_freq'): 
     modes = ['nsubj', 'ROOT', 'dobj']
@@ -63,16 +63,15 @@ def test_sim(task_df0, cutoff=100, rank=256, mode_to_test='svo',
                                       mode='rb'))
     oov = defaultdict(int)
     target_col = f'tensor_sim'#_{weight_name}_{cutoff}_{rank}'
-    try:
-        basen = f'{decomp_algo}_{weight_name}_{cutoff}_{rank}.pkl'
-        x = pickle.load(open( os.path.join(tensor_dir, basen), mode='rb'))
-        if decomp_algo == 'tucker':
-            decomped_tns = x
-        else: # 'decomp_algo' == 'ktensor'
-            decomped_tns, fit, n_iterations, exectimes = x
-    except FileNotFoundError as e:
-        #logging.warning(e)
-        task_df[target_col] = mean
+    basen = f'{decomp_algo}_{weight_name}_{cutoff}_{rank}.pkl'
+    x = pickle.load(open( os.path.join(tensor_dir, basen), mode='rb'))
+    if decomp_algo == 'tucker':
+        decomped_tns = x
+    else: # 'decomp_algo' == 'ktensor'
+        decomped_tns, fit, n_iterations, exectimes = x
+    #except FileNotFoundError as e:
+    #   logging.warning(e)
+    #   task_df[target_col] = mean
     if decomp_algo == 'tucker':
         factors = decomped_tns.factors 
     else: # decomp_algo == 'ktensor'
@@ -98,7 +97,7 @@ def test_sim(task_df0, cutoff=100, rank=256, mode_to_test='svo',
     if mode_to_test == 'svo':
         for qwocs, svo_vc in [(query1_cols, 'svo1_v'),
                               (query2_cols, 'svo2_v')]:
-            qvecs = [f'{qwc}_v' for qwc[1] in qwocs]
+            qvecs = [f'{qwc[1]}_v' for qwc in qwocs]
             task_df[svo_vc] = task_df[qvecs].apply(np.concatenate, axis=1)
     if normlz_vocb and mode_to_test == 'svo':
         for svo_vc in ['svo1_v', 'svo2_v']:
