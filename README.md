@@ -12,5 +12,5 @@
 1. analyse latent dimensions manually with `police_arrest_suspect`
 1. plot more experiments with `show_exper.ipynb`
 1. `cluster` embedding vectors
-1. symmetry.ipynb is build on the hypothesis that the embedding vectors of
+1. `symmetry.ipynb` is based on the hypothesis that the embedding vectors of
    subjects and objects should be the same
