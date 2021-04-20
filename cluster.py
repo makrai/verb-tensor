@@ -23,7 +23,7 @@ import logging
 
 
 class ClusterVerbs():
-    def __init__(self, weight='log_freq', cutoff=100, rank=256, clusser_dim=16,
+    def __init__(self, weight='log_freq', cutoff=2000, rank=128, clusser_dim=16,
                  min_cluster_size=5, min_samples=None, metric='cosine'):
         self.clusser_dim = clusser_dim
         self.min_cluster_size = min_cluster_size
