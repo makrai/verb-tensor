@@ -15,13 +15,13 @@ import pyconll
 
 
 logging.basicConfig(
-    level=logging.DEBUG, 
+    level=logging.DEBUG,
     format="%(module)s (%(lineno)s) - %(levelname)s - %(message)s")
 
 
 def depcc_to_conllu(filen_gz):
     """
-    Fixes indexing and feats, and 
+    Fixes indexing and feats, and
     yields conllus of a sentence, one sentence each time.
     """
     with gzip.open(filen_gz, mode='rt') as infile:
@@ -46,7 +46,10 @@ def get_triples(input_part=9100):
     """
     Empty nsubj and dobj are represented by empty string.
     """
-    outfilen = f'/mnt/permanent/home/makrai/project/verb-tensor/pyconll/dataframe/freq{input_part}.pkl'
+    config = configparser.ConfigParser()
+    config.read('config.ini')
+    outfilen = os.path.join(config['DEFAULT']['ProjectDirectory'],
+            f'dataframe/freq{input_part}.pkl')
     if os.path.exists(outfilen):
         logging.info(f'File exists: {outfilen}')
         return
@@ -58,8 +61,8 @@ def get_triples(input_part=9100):
                 train = pyconll.load_from_string(sent_str)
             except Exception as e:
                 logging.error(e)
-                continue 
-            sentence = train.pop() # sent_str is only one sentence.  
+                continue
+            sentence = train.pop() # sent_str is only one sentence.
             triples_in_sent = defaultdict(lambda: {'nsubj': '', 'dobj': ''})
             # triples = {id_of_root: {'nsubj': 'dog'}}
 
@@ -70,20 +73,19 @@ def get_triples(input_part=9100):
 
             # Collecting the verbs, not only the main pred of the sentence.
             for id_form_1 in triples_in_sent:
-                triples_in_sent[id_form_1]['ROOT'] = sentence[int(id_form_1)].lemma
-
+                if sentence[int(id_form_1)].upos.startswith('V'):
+                    verb = sentence[int(id_form_1)].lemma
+                    triples_in_sent[id_form_1]['ROOT'] = verb
 
             # Appending full triples to the list..
             for triple in triples_in_sent.values():
-                triples.append(triple)
+                if 'ROOT' in triple:
+                    triples.append(triple)
+
 
     df = pd.DataFrame(triples)
     df = df.groupby(list(df.columns)).size().sort_values(ascending=False)
-    config = configparser.ConfigParser()
-    config.read('config.ini') 
-    df.to_frame(name='freq').to_pickle(os.path.join(
-        config['DEFAULT']['ProjectDirectory'],
-        f'dataframe/freq{input_part}.pkl'))
+    df.to_frame(name='freq').to_pickle(outfilen)
 
 
 if __name__ == '__main__':
