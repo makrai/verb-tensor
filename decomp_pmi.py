@@ -63,35 +63,35 @@ class VerbTensor():
         df['log_freq'] = np.log2(df.freq)
         df['log_prob'] = df.log_freq - log_total
         df['pmi'] = df.log_prob
-        df['iact_info'] = -df.log_prob
+        df['iact'] = -df.log_prob
         for mode in self.modes:
             df.pmi -= df[f'log_prob_freq_{mode}']
-            df.iact_info -= df[f'log_prob_freq_{mode}']
+            df.iact -= df[f'log_prob_freq_{mode}']
         for mode_pair in itertools.combinations(self.modes, 2):
-            df.iact_info += df[f'log_prob_freq_{mode_pair}']
+            df.iact += df[f'log_prob_freq_{mode_pair}']
         if positive:
             df['0'] = 0
             df.pmi = df[['pmi', '0']].max(axis=1)
-            df.iact_info = df[['iact_info', '0']].max(axis=1)
+            df.iact = df[['iact', '0']].max(axis=1)
             del df['0']
         df['npmi'] = df.pmi / -df.log_prob
-        df['niact'] = df.iact_info / -df.log_prob
+        df['niact'] = df.iact / -df.log_prob
         # TODO Interpretation of positive pointwise interaction information
-        #logging.debug('Computing salience..')
-        df['salience'] = df.pmi * df.log_freq
-        df['iact_sali'] = df.iact_info * df.log_freq
+        #logging.debug('Computing pmi_sali..')
+        df['pmi_sali'] = df.pmi * df.log_freq
+        df['iact_sali'] = df.iact * df.log_freq
 
         #logging.debug('Computing Dice..')
-        df['log_dice'] = 3 * df.freq
+        df['ldice'] = df.freq
         df['dice_denom'] = 0
         for mode in self.modes:
             df.dice_denom += df[f'freq_{mode}']
-        df.log_dice /= df.dice_denom
+        df.ldice /= df.dice_denom
         del df['dice_denom']
-        df.log_dice = np.log2(df.log_dice)
-        df.log_dice -= df.log_dice.min()
+        df.ldice = np.log2(df.ldice)
+        df.ldice -= df.ldice.min()
 
-        df['dice_sali'] = df.log_dice * df.log_freq
+        df['ldice_sali'] = df.ldice * df.log_freq
         logging.info(f'Saving to {self.assoc_df_filen_patt}{self.input_part}..')
         df.to_pickle(self.assoc_df_filen_patt.format(self.input_part, 'pkl'))
         if write_tsv:
@@ -171,8 +171,8 @@ class VerbTensor():
         pickle.dump(result, open(decomp_filen, mode='wb'))
 
 
-weights =  ['log_freq', 'pmi', 'iact_info', 'salience', 'iact_sali',
-            'log_dice', 'dice_sali', 'npmi', 'niact'] # freq TODO
+weights =  ['log_freq', 'pmi', 'iact', 'pmi_sali', 'iact_sali',
+            'ldice', 'ldice_sali', 'npmi', 'niact'] # freq TODO
 
 def parse_args():
     parser = argparse.ArgumentParser(
