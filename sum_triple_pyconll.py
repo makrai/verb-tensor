@@ -27,27 +27,28 @@ def read_series_or_df(filen):
         raise NotImplementedError
 
 
-def sum_hunderd_files(i=0):
+def sum_thousand_files():
     """
     13 min
     """
     df = None
-    for j in range(10):
-        logging.info(f'Adding freq{j}{i}x')
-        for k in range(10):
-            filen = os.path.join(df_dir, f'freq{k}{j}{i}.pkl')
-            if not os.path.isfile(filen):
-                logging.warning('File {} not exists.'.format(filen))
-                continue
-            df0 = read_series_or_df(filen)
-            if df is None:
-                df = df0
-            else:
-                df += df0.reindex(df.index, fill_value=0)
+    for i in range(10):
+        for j in range(10):
+            logging.info(f'Adding freq{j}{i}x')
+            for k in range(10):
+                filen = os.path.join(df_dir, f'freq{k}{j}{i}.pkl')
+                if not os.path.isfile(filen):
+                    logging.warning('File {} not exists.'.format(filen))
+                    continue
+                df0 = read_series_or_df(filen)
+                if df is None:
+                    df = df0
+                else:
+                    df += df0.reindex(df.index, fill_value=0)
     logging.info('Pickling dataframe..')
     df = df.astype(int)
     df = df.sort_values('freq', ascending=False)
-    df.to_pickle(os.path.join(df_dir, f'freq{i}.pkl'))
+    df.to_pickle(os.path.join(df_dir, f'freq.pkl'))
     return df
 
 
@@ -92,6 +93,6 @@ def sum_ten_files(common_suff):
 
 
 if __name__ == '__main__':
-    #sum_hunderd_files(i=sys.argv[1])
+    sum_thousand_files()
     #sum_second_half()
-    sum_ten_files('')
+    #sum_ten_files('')
