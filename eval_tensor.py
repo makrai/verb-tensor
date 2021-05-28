@@ -78,10 +78,12 @@ class VerbTensorEvaluator():
                 'mode_to_test has to be eigther svo, nsubj, ROOT, or dobj')
 
     def load_embeddings(self, decomp_algo='tucker', weight='log_freq',
-            cutoff=2000, rank=128, normlz_vocb_and_not_svo=False, lmbda=False):
+            cutoff=2000, rank=128, normlz_vocb_and_not_svo=False, lmbda=False,
+            non_negative=False):
         _, self.index = pickle.load(open(os.path.join(
             tensor_dir, f'sparstensr_{weight}_{cutoff}.pkl'), mode='rb'))
-        basen = f'{decomp_algo}_{weight}_{cutoff}_{rank}.pkl'
+        non_negative = 'non_negative_' if non_negative else ''
+        basen = f'{non_negative}{decomp_algo}_{weight}_{cutoff}_{rank}.pkl'
         x = pickle.load(open(os.path.join(tensor_dir, basen), mode='rb'))
         if decomp_algo == 'tucker':
             self.decomped_tns = x
@@ -112,14 +114,14 @@ class VerbTensorEvaluator():
 
     def test_sim(self, task_df0, cutoff=2000, rank=128, mode_to_test='svo',
                  normlz_vocb=True, lmbda=False, decomp_algo='tucker',
-                 weight='log_freq'):
+                 weight='log_freq', non_negative=False):
         task_df = task_df0.copy() # Subj and obj sim not to go in the same df
         self.get_cols(mode_to_test)
         mean = task_df[self.sim_col].mean()
         self.load_embeddings(decomp_algo=decomp_algo, weight=weight,
                 cutoff=cutoff, rank=rank, 
                 normlz_vocb_and_not_svo=normlz_vocb and mode_to_test!='svo',
-                lmbda=lmbda)
+                lmbda=lmbda, non_negative=non_negative)
         for mode_i, query_w_col in self.query1_cols + self.query2_cols:
             series = task_df[query_w_col].apply(
                 lambda word: self.lookup(word, mode_i=mode_i))
