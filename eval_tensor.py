@@ -84,15 +84,10 @@ class VerbTensorEvaluator():
             tensor_dir, f'sparstensr_{weight}_{cutoff}.pkl'), mode='rb'))
         non_negative = 'non_negative_' if non_negative else ''
         basen = f'{non_negative}{decomp_algo}_{weight}_{cutoff}_{rank}.pkl'
-        x = pickle.load(open(os.path.join(tensor_dir, basen), mode='rb'))
-        if decomp_algo == 'tucker':
-            self.decomped_tns = x
-        else: # 'decomp_algo' == 'ktensor'
-            self.decomped_tns, fit, n_iterations, exectimes = x
-        if decomp_algo == 'tucker':
-            factors = self.decomped_tns.factors
-        else: # decomp_algo == 'ktensor'
-            factors = self.decomped_tns.U
+        self.decomped_tns = pickle.load(open(os.path.join(tensor_dir, basen), mode='rb'))
+        factors = self.decomped_tns.factors
+        if decomp_algo == 'parafac':
+            factors = [factor.todense() for factor in factors]
         if lmbda:
             sq_lam = np.sqrt(np.apply_along_axis(np.linalg.norm, 0,
                                                  self.decomped_tns.lmbda))
