@@ -117,7 +117,11 @@ class VerbTensor():
         else:
             self.pmi_df = self.append_pmi()
         self.pmi_df = self.pmi_df.reset_index()
-        df = self.pmi_df[self.pmi_df.freq >= cutoff].copy()
+        freq_sub_tensor = self.pmi_df[ 
+                (self.pmi_df.freq_nsubj >= cutoff) &
+                (self.pmi_df.freq_ROOT >= cutoff) & 
+                (self.pmi_df.freq_dobj >= cutoff)] 
+        df = freq_sub_tensor.copy()
         logging.info(f'Preparing the index.. (weight={weight})')
         self.index = {}
         for mode in self.modes:
