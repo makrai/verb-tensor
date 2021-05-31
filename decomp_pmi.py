@@ -18,10 +18,8 @@ import tensorly as tl
 # Use two of the following four
 #from tensorly.contrib.sparse import tensor
 from tensorly.contrib.sparse.decomposition import tucker, non_negative_tucker
-# Non-neg Tucker seems slow. 
-# I didn't find out, how to use parafac on sparse.
 from tensorly import tensor
-from tensorly.decomposition import parafac
+from tensorly.contrib.sparse.decomposition import parafac
 
 
 class VerbTensor():
@@ -151,7 +149,7 @@ class VerbTensor():
             logging.warning('Not implemented, log(0)=?')
         logging.info((weight, rank, cutoff))
         algo = 'non_negative_' if non_negative else '' 
-        algo += 'tucker' if do_tucker else 'kruskal'
+        algo += 'tucker' if do_tucker else 'parafac'
         decomp_filen = os.path.join(self.tensor_dir,
                                     f'{algo}_{weight}_{cutoff}_{rank}.pkl')
         if os.path.exists(decomp_filen):
@@ -167,10 +165,12 @@ class VerbTensor():
             else:
                 result = tucker(self.sparse_tensor, rank=rank)
         else:
+            rank = int(rank)
             if non_negative:
                 raise NotImplementedError
             #tl.set_backend('pytorch')
-            result = parafac(tensor(self.sparse_tensor.todense()), rank=int(rank))
+            result = parafac(self.sparse_tensor, init='random', rank=rank,
+                             verbose=True)
         # tensor(.., device='cuda:0')
         pickle.dump(result, open(decomp_filen, mode='wb'))
 
