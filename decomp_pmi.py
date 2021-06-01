@@ -183,7 +183,7 @@ def parse_args():
     parser.add_argument('--non_negative', action='store_true')
     parser.add_argument('--decomp_algo', choices=['tucker', 'parafac'],
         default='tucker')
-    parser.add_argument('--rank', default=64)
+    parser.add_argument('--rank', default='64')
     parser.add_argument('--cutoff', type=int, default=100000)
     parser.add_argument('--weight', choices=['for', 'rand']+weights,
             default='log_freq')
