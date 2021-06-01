@@ -186,7 +186,7 @@ def parse_args():
     parser.add_argument('--rank', default='64')
     parser.add_argument('--cutoff', type=int, default=100000)
     parser.add_argument('--weight', choices=['for', 'rand']+weights,
-            default='log_freq')
+            default='npmi')
     parser.add_argument('--input-part', default='', dest='input_part')
     return parser.parse_args()
 
