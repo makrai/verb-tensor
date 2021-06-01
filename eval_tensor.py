@@ -53,7 +53,7 @@ def read_SimLex():
 
 class VerbTensorEvaluator():
     def __init__(self, non_negative=False, decomp_algo='tucker', weight='log_freq',
-            rank=64, cutoff=1000000, normlz_vocb=False,
+            rank=64, cutoff=100000, normlz_vocb=False,
             lmbda=False):
         self.non_negative = non_negative
         self.decomp_algo = decomp_algo
