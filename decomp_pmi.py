@@ -148,17 +148,16 @@ class VerbTensor():
         if cutoff == 0:
             logging.warning('Not implemented, log(0)=?')
         logging.info((weight, rank, cutoff))
-        algo = 'non_negative_' if non_negative else '' 
-        algo += 'tucker' if do_tucker else 'parafac'
+        non_neg_str = 'non_negative_' if non_negative else '' 
         decomp_filen = os.path.join(self.tensor_dir,
-                                    f'{algo}_{weight}_{cutoff}_{rank}.pkl')
+                                    f'{non_neg_str}{decomp_algo}_{weight}_{cutoff}_{rank}.pkl')
         if os.path.exists(decomp_filen):
             logging.warning('File exists')
             return
         self.get_sparse(weight, cutoff)
         logging.info(self.sparse_tensor.shape)
         logging.info(f'Decomposition..')
-        if do_tucker:
+        if decomp_algo == 'tucker':
             rank = map(int, rank.split(',')) if ',' in rank else int(rank)
             if non_negative:
                 result = non_negative_tucker(self.sparse_tensor, rank=rank)
@@ -171,7 +170,7 @@ class VerbTensor():
             #tl.set_backend('pytorch')
             result = parafac(self.sparse_tensor, init='random', rank=rank,
                              verbose=True)
-        # tensor(.., device='cuda:0')
+            # tensor(.., device='cuda:0')
         pickle.dump(result, open(decomp_filen, mode='wb'))
 
 
@@ -181,12 +180,13 @@ weights =  ['log_freq', 'pmi', 'iact', 'pmi_sali', 'iact_sali',
 def parse_args():
     parser = argparse.ArgumentParser(
         description='Decompose a tensor of verb and argument cooccurrences')
-    parser.add_argument('--weight', choices=['for', 'rand']+weights)
-        #default='log_freq',
-    parser.add_argument('--cutoff', type=int, default=5)
+    parser.add_argument('--weight', choices=['for', 'rand']+weights,
+        default='log_freq')
+    parser.add_argument('--cutoff', type=int, default=1000000)
     parser.add_argument('--rank')
     parser.add_argument('--input-part', default='', dest='input_part')
-    parser.add_argument('--tucker', action='store_true')
+    parser.add_argument('--decomp_algo', default='tucker', 
+            choices=['tucker', 'parafac'])
     parser.add_argument('--non_negative', action='store_true')
     return parser.parse_args()
 
@@ -202,7 +202,7 @@ if __name__ == '__main__':
         for weight in weights:
             args.weight = weight#s[np.random.randint(0, len(weights))]
             decomposer.decomp(weight=args.weight, cutoff=args.cutoff,
-                              rank=args.rank, do_tucker=args.tucker,
+                              rank=args.rank, decomp_algo=args.decomp_algo,
                               non_negative=args.non_negative)
     elif args.weight == 'rand':
         #while True:
@@ -210,4 +210,4 @@ if __name__ == '__main__':
         args.weight = weights[np.random.randint(0, len(weights))]
     decomposer.decomp(
             weight=args.weight, cutoff=args.cutoff, rank=args.rank,
-            do_tucker=args.tucker, non_negative=args.non_negative)
+            decomp_algo=args.decomp_algo, non_negative=args.non_negative)
