@@ -52,6 +52,17 @@ def read_SimLex():
 
 
 class VerbTensorEvaluator():
+    def __init__(self, non_negative=False, decomp_algo='tucker', weight='log_freq',
+            rank=64, cutoff=1000000, normlz_vocb=False,
+            lmbda=False):
+        self.non_negative = non_negative
+        self.decomp_algo = decomp_algo
+        self.weight = weight
+        self.rank = rank
+        self.cutoff = cutoff
+        self.normlz_vocb = normlz_vocb
+        self.lmbda = lmbda
+
     def get_cols(self, mode_to_test):
         if mode_to_test == 'svo':
             #logging.info('Assuming df is Kartsaklis and Sadrzadeh Turk')
@@ -77,23 +88,22 @@ class VerbTensorEvaluator():
             raise Exception(
                 'mode_to_test has to be eigther svo, nsubj, ROOT, or dobj')
 
-    def load_embeddings(self, decomp_algo='tucker', weight='log_freq',
-            cutoff=2000, rank=128, normlz_vocb_and_not_svo=False, lmbda=False,
-            non_negative=False):
-        _, self.index = pickle.load(open(os.path.join(
-            tensor_dir, f'sparstensr_{weight}_{cutoff}.pkl'), mode='rb'))
-        non_negative = 'non_negative_' if non_negative else ''
-        basen = f'{non_negative}{decomp_algo}_{weight}_{cutoff}_{rank}.pkl'
-        self.decomped_tns = pickle.load(open(os.path.join(tensor_dir, basen), mode='rb'))
+    def load_embeddings(self):
+        _, self.index = pickle.load(open(os.path.join(tensor_dir,
+            f'sparstensr_{self.weight}_{self.cutoff}.pkl'), mode='rb'))
+        non_negative_str = 'non_negative_' if self.non_negative else ''
+        basen = f'{non_negative_str}{self.decomp_algo}_{self.weight}_{self.cutoff}_{self.rank}.pkl'
+        self.decomped_tns = pickle.load(open(os.path.join(tensor_dir, basen),
+                                             mode='rb'))
         factors = self.decomped_tns.factors
-        if decomp_algo == 'parafac':
+        if self.decomp_algo == 'parafac':
             factors = [factor.todense() for factor in factors]
-        if lmbda:
+        if self.lmbda:
             sq_lam = np.sqrt(np.apply_along_axis(np.linalg.norm, 0,
-                                                 self.decomped_tns.lmbda))
+                                                 self.decomped_tns.self.lmbda))
             for mode_i in modes_used:
                 factors[mode_i] *= sq_lam
-        if normlz_vocb_and_not_svo:
+        if self.normlz_vocb and mode_to_test!='svo':
             mode_i = self.query1_cols[0][0]
             factors[mode_i] /= np.apply_along_axis(
                 np.linalg.norm, 1, factors[mode_i]).reshape((-1,1))
@@ -104,19 +114,14 @@ class VerbTensorEvaluator():
                 return factors[mode_i][self.index[modes[mode_i]][word]]
             except KeyError as e:
                 self.oov[e.args] += 1
-                return np.zeros(rank)
+                return np.zeros(self.rank)
         self.lookup = lookup
 
-    def test_sim(self, task_df0, cutoff=2000, rank=128, mode_to_test='svo',
-                 normlz_vocb=True, lmbda=False, decomp_algo='tucker',
-                 weight='log_freq', non_negative=False):
+    def test_sim(self, task_df0, mode_to_test='svo'):
         task_df = task_df0.copy() # Subj and obj sim not to go in the same df
         self.get_cols(mode_to_test)
         mean = task_df[self.sim_col].mean()
-        self.load_embeddings(decomp_algo=decomp_algo, weight=weight,
-                cutoff=cutoff, rank=rank, 
-                normlz_vocb_and_not_svo=normlz_vocb and mode_to_test!='svo',
-                lmbda=lmbda, non_negative=non_negative)
+        self.load_embeddings()
         for mode_i, query_w_col in self.query1_cols + self.query2_cols:
             series = task_df[query_w_col].apply(
                 lambda word: self.lookup(word, mode_i=mode_i))
@@ -126,7 +131,7 @@ class VerbTensorEvaluator():
                                   (self.query2_cols, 'svo2_v')]:
                 qvecs = [f'{qwc[1]}_v' for qwc in qwocs]
                 task_df[svo_vc] = task_df[qvecs].apply(np.concatenate, axis=1)
-        if normlz_vocb and mode_to_test == 'svo':
+        if self.normlz_vocb and mode_to_test == 'svo':
             for svo_vc in ['svo1_v', 'svo2_v']:
                 task_df[svo_vc] /= task_df[svo_vc].apply(np.linalg.norm)
         if mode_to_test == 'svo':
@@ -136,7 +141,7 @@ class VerbTensorEvaluator():
                             for item in [self.query1_cols, self.query2_cols]]
         def cell_dot_cell(series):
             return series[0].dot(series[1])
-        target_col = 'tensor_sim'#_{weight}_{cutoff}_{rank}'
+        target_col = 'tensor_sim'#_{self.weight}_{self.cutoff}_{self.rank}'
         task_df[target_col] = task_df[query_v_cols].apply(cell_dot_cell, axis=1)
         logging.debug(sorted(self.oov.items(), key=operator.itemgetter(1),
                              reverse=True)[:5])
@@ -144,16 +149,18 @@ class VerbTensorEvaluator():
         logging.debug(sim_corr)
         return sim_corr[target_col]
 
-    def predict_verb(self, target_df, weight='log_freq', rank=128, cutoff=2000,
-            prec_at=1, logg_oov=False):
+    def predict_verb(self, target_df, prec_at=1, logg_oov=False,
+        target_pref='verb', cols_suff='', majority_baseline=5):
         """
         Results are bellow the majority baseline.
+        cols_suff: GS11 or Jenatton: '', KS13: 1 or 2
+        majority baseline: GS11 verb: 20 landmark: 10, KS13 verb1: 5 verb2: 7
+        target_pref: GS11: verb or landmark, KS13: verb
         """
         self.load_embeddings()
         #logging.debug('Making predictions..')
         low_verb_low = tl.tenalg.mode_dot(
                 self.decomped_tns.core, self.decomped_tns.factors[1], mode=1)
-        cols_suff = '' # GS11 or Jenatton: '', KS13: 1 or 2
         def verb_pred(series):
             series = series[[f'subject{cols_suff}', f'object{cols_suff}']]
             v_subj = self.lookup(series[0], mode_i=0)
@@ -167,14 +174,13 @@ class VerbTensorEvaluator():
             logging.debug(sorted(self.oov.items(), key=operator.itemgetter(1),
                                  reverse=True))
         #logging.debug('Evaluating predictions..')
-        target = f'verb{cols_suff}' # or 'landmark'
+        target = f'{target_pref}{cols_suff}' 
         def is_good(series):
             return series[target] in series['predicted']
         target_df[f'good'] = target_df.apply(is_good, axis=1)
         n_good = target_df[f'good'].sum()
-        # majority baseline = GS11 verb: 20 landmark: 10, KS13 verb1: 5 verb2: 7
         if n_good > 5:
-            logging.info(f'{target}\t{weight}\t{rank}\t{n_good}')
+            logging.info(f'{target}\t{self.weight}\t{self.rank}\t{n_good}')
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG,
