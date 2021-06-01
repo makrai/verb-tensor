@@ -144,7 +144,7 @@ class VerbTensor():
                     open(os.path.join(self.tensor_dir, self.sparse_filen),
                          mode='wb'))
 
-    def decomp(self, weight, cutoff, rank, do_tucker, non_negative):
+    def decomp(self, weight, cutoff, rank, decomp_algo, non_negative):
         if cutoff == 0:
             logging.warning('Not implemented, log(0)=?')
         logging.info((weight, rank, cutoff))
@@ -180,14 +180,14 @@ weights =  ['log_freq', 'pmi', 'iact', 'pmi_sali', 'iact_sali',
 def parse_args():
     parser = argparse.ArgumentParser(
         description='Decompose a tensor of verb and argument cooccurrences')
-    parser.add_argument('--weight', choices=['for', 'rand']+weights,
-        default='log_freq')
-    parser.add_argument('--cutoff', type=int, default=1000000)
-    parser.add_argument('--rank')
-    parser.add_argument('--input-part', default='', dest='input_part')
-    parser.add_argument('--decomp_algo', default='tucker', 
-            choices=['tucker', 'parafac'])
     parser.add_argument('--non_negative', action='store_true')
+    parser.add_argument('--decomp_algo', choices=['tucker', 'parafac'],
+        default='tucker')
+    parser.add_argument('--rank', default=64)
+    parser.add_argument('--cutoff', type=int, default=1000000)
+    parser.add_argument('--weight', choices=['for', 'rand']+weights,
+            default='log_freq')
+    parser.add_argument('--input-part', default='', dest='input_part')
     return parser.parse_args()
 
 
