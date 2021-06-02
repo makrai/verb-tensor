@@ -54,32 +54,33 @@ def read_SimLex():
 class VerbTensorEvaluator():
     def __init__(self, non_negative=False, decomp_algo='tucker', weight='npmi',
             rank=64, cutoff=100000, normlz_vocb=False,
-            lmbda=False):
+            lmbda=False, mode_to_test='svo'):
         self.non_negative = non_negative
         self.decomp_algo = decomp_algo
         self.weight = weight
         self.rank = rank
         self.cutoff = cutoff
+        self.mode_to_test = mode_to_test
         self.normlz_vocb = normlz_vocb
         self.lmbda = lmbda
 
-    def get_cols(self, mode_to_test):
-        if mode_to_test == 'svo':
+    def get_cols(self):
+        if self.mode_to_test == 'svo':
             #logging.info('Assuming df is Kartsaklis and Sadrzadeh Turk')
             self.query1_cols = list(enumerate(['subject1', 'verb1', 'object1']))
             self.query2_cols = list(enumerate(['subject2', 'verb2', 'object2']))
             self.sim_col = 'score'
-        elif mode_to_test == 'ROOT':
+        elif self.mode_to_test == 'ROOT':
             #logging.info('Assuming df is SimVerb')
             self.query1_cols = [(1, 'verb1')]
             self.query2_cols = [(1, 'verb2')]
             self.sim_col = 'sim'
-        elif mode_to_test == 'nsubj':
+        elif self.mode_to_test == 'nsubj':
             #logging.info('Assuming df is SimLex')
             self.query1_cols = [(0, 'word1')]
             self.query2_cols = [(0, 'word2')]
             self.sim_col = 'SimLex999'
-        elif mode_to_test == 'dobj':
+        elif self.mode_to_test == 'dobj':
             #logging.info('Assuming df is SimLex')
             self.query1_cols = [(2, 'word1')]
             self.query2_cols = [(2, 'word2')]
@@ -100,10 +101,10 @@ class VerbTensorEvaluator():
             factors = [factor.todense() for factor in factors]
         if self.lmbda:
             sq_lam = np.sqrt(np.apply_along_axis(np.linalg.norm, 0,
-                                                 self.decomped_tns.self.lmbda))
-            for mode_i in modes_used:
+                                                 self.decomped_tns.weights.todense()))
+            for mode_i in range(3):
                 factors[mode_i] *= sq_lam
-        if self.normlz_vocb and mode_to_test!='svo':
+        if self.normlz_vocb and self.mode_to_test!='svo':
             mode_i = self.query1_cols[0][0]
             factors[mode_i] /= np.apply_along_axis(
                 np.linalg.norm, 1, factors[mode_i]).reshape((-1,1))
@@ -117,24 +118,24 @@ class VerbTensorEvaluator():
                 return np.zeros(self.rank)
         self.lookup = lookup
 
-    def test_sim(self, task_df0, mode_to_test='svo'):
+    def test_sim(self, task_df0):
         task_df = task_df0.copy() # Subj and obj sim not to go in the same df
-        self.get_cols(mode_to_test)
+        self.get_cols()
         mean = task_df[self.sim_col].mean()
         self.load_embeddings()
         for mode_i, query_w_col in self.query1_cols + self.query2_cols:
             series = task_df[query_w_col].apply(
                 lambda word: self.lookup(word, mode_i=mode_i))
             task_df['{}_v'.format(query_w_col)] = series
-        if mode_to_test == 'svo':
+        if self.mode_to_test == 'svo':
             for qwocs, svo_vc in [(self.query1_cols, 'svo1_v'),
                                   (self.query2_cols, 'svo2_v')]:
                 qvecs = [f'{qwc[1]}_v' for qwc in qwocs]
                 task_df[svo_vc] = task_df[qvecs].apply(np.concatenate, axis=1)
-        if self.normlz_vocb and mode_to_test == 'svo':
+        if self.normlz_vocb and self.mode_to_test == 'svo':
             for svo_vc in ['svo1_v', 'svo2_v']:
                 task_df[svo_vc] /= task_df[svo_vc].apply(np.linalg.norm)
-        if mode_to_test == 'svo':
+        if self.mode_to_test == 'svo':
             query_v_cols = ['svo1_v', 'svo2_v']
         else:
             query_v_cols = [f'{item[0][1]}_v'
@@ -186,8 +187,5 @@ if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG,
                         format='%(levelname)-8s [%(lineno)d] %(message)s')
     evalor = VerbTensorEvaluator()
-    evalor.test_sim(read_ks().reset_index(), mode_to_test='svo')
+    evalor.test_sim(read_ks().reset_index())
     #evalor.predict_verb(read_gs().reset_index())
-    #test_sim(read_SimVerb().reset_index(), mode_to_test='ROOT')
-    #test_sim(read_SimLex().reset_index(), mode_to_test='nsubj')
-    #test_sim(read_SimLex().reset_index(), mode_to_test='dobj')
