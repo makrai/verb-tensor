@@ -52,7 +52,7 @@ def read_SimLex():
 
 
 class VerbTensorEvaluator():
-    def __init__(self, non_negative=False, decomp_algo='tucker', weight='log_freq',
+    def __init__(self, non_negative=False, decomp_algo='tucker', weight='npmi',
             rank=64, cutoff=100000, normlz_vocb=False,
             lmbda=False):
         self.non_negative = non_negative
@@ -89,13 +89,13 @@ class VerbTensorEvaluator():
                 'mode_to_test has to be eigther svo, nsubj, ROOT, or dobj')
 
     def load_embeddings(self):
-        _, self.index = pickle.load(open(os.path.join(tensor_dir,
-            f'sparstensr_{self.weight}_{self.cutoff}.pkl'), mode='rb'))
         non_negative_str = 'non_negative_' if self.non_negative else ''
         basen = f'{non_negative_str}{self.decomp_algo}_{self.weight}_{self.cutoff}_{self.rank}.pkl'
         self.decomped_tns = pickle.load(open(os.path.join(tensor_dir, basen),
                                              mode='rb'))
         factors = self.decomped_tns.factors
+        _, self.index = pickle.load(open(os.path.join(tensor_dir,
+            f'sparstensr_{self.weight}_{self.cutoff}.pkl'), mode='rb'))
         if self.decomp_algo == 'parafac':
             factors = [factor.todense() for factor in factors]
         if self.lmbda:
@@ -180,7 +180,7 @@ class VerbTensorEvaluator():
         target_df[f'good'] = target_df.apply(is_good, axis=1)
         n_good = target_df[f'good'].sum()
         if n_good > 5:
-            logging.info(f'{target}\t{self.weight}\t{self.rank}\t{n_good}')
+            logging.info(f'{target}\t{self.weight}\t{self.rank}\t{self.cutoff}\t{n_good}')
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG,
