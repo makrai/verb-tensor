@@ -53,13 +53,14 @@ def read_SimLex():
 
 class VerbTensorEvaluator():
     def __init__(self, non_negative=False, decomp_algo='tucker', weight='npmi',
-            rank=64, cutoff=100000, normlz_vocb=False,
+            rank=64, include_empty=True, cutoff=100000, normlz_vocb=False,
             lmbda=False, mode_to_test='svo'):
         self.non_negative = non_negative
         self.decomp_algo = decomp_algo
         self.weight = weight
         self.rank = rank
         self.cutoff = cutoff
+        self.include_empty = include_empty
         self.mode_to_test = mode_to_test
         self.normlz_vocb = normlz_vocb
         self.lmbda = lmbda
@@ -91,7 +92,8 @@ class VerbTensorEvaluator():
 
     def load_embeddings(self):
         non_negative_str = 'non_negative_' if self.non_negative else ''
-        basen = f'{non_negative_str}{self.decomp_algo}_{self.weight}_{self.cutoff}_{self.rank}.pkl'
+        include_empty_str = '' if self.include_empty else 'non-empty_'
+        basen = f'{non_negative_str}{self.decomp_algo}_{self.weight}_{include_empty_str}{self.cutoff}_{self.rank}.pkl'
         self.decomped_tns = pickle.load(open(os.path.join(tensor_dir, basen),
                                              mode='rb'))
         factors = self.decomped_tns.factors
@@ -181,7 +183,7 @@ class VerbTensorEvaluator():
         target_df[f'good'] = target_df.apply(is_good, axis=1)
         n_good = target_df[f'good'].sum()
         if n_good > 5:
-            logging.info(f'{target}\t{self.weight}\t{self.rank}\t{self.cutoff}\t{n_good}')
+            logging.info(f'{target}\t{self.weight}\t{self.rank}\t{self.include_empty}\t{self.cutoff}\t{n_good}')
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG,
