@@ -98,7 +98,7 @@ class VerbTensorEvaluator():
                                              mode='rb'))
         factors = self.decomped_tns.factors
         _, self.index = pickle.load(open(os.path.join(tensor_dir,
-            f'sparstensr_{self.weight}_{self.cutoff}.pkl'), mode='rb'))
+            f'sparstensr_{self.weight}_{self.include_empty}_{self.cutoff}.pkl'), mode='rb'))
         if self.decomp_algo == 'parafac':
             factors = [factor.todense() for factor in factors]
         if self.lmbda:

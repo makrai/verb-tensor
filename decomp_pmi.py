@@ -30,12 +30,10 @@ class VerbTensor():
         self.project_dir = config['DEFAULT']['ProjectDirectory']
         self.tensor_dir = os.path.join(self.project_dir, 'tensor',
                                        self.input_part)
-        self.assoc_df_filen_patt = os.path.join(self.project_dir,
-                                                'dataframe/assoc{}.{}')
         self.modes = ['nsubj', 'ROOT', 'dobj']
         # mazsola: ['NOM', 'stem', 'ACC']
 
-    def append_pmi(self, write_tsv=False, positive=True):
+    def append_pmi(self, include_empty, positive=True):
         filen = os.path.join(self.project_dir,
                              f'dataframe/freq{self.input_part}.pkl')
         logging.info(f'Reading freqs from {filen}')
@@ -50,9 +48,12 @@ class VerbTensor():
             logging.info(mode_pair)
             df = df.join(marginal2[mode_pair], on=mode_pair,
                          rsuffix=f'_{mode_pair}')
+        df.reset_index(inplace=True)
+        if not include_empty:
+            df = df[((df.nsubj != '') & (df.ROOT != '') & (df.dobj != ''))]
         logging.info('Computing association scores..')
         log_total = np.log2(df.freq.sum())
-        i_marginal_start = 1 #if len(self.input_part) <= 2 else 4
+        i_marginal_start = 4
         for name in df.columns[i_marginal_start:]:
             # Computing log-probabilities or 1- and 2-marginals
             # TODO cutoff == 0 -> log(0)
@@ -90,36 +91,31 @@ class VerbTensor():
         df.ldice -= df.ldice.min()
 
         df['ldice_sali'] = df.ldice * df.log_freq
-        logging.info(f'Saving to {self.assoc_df_filen_patt}{self.input_part}..')
-        df.to_pickle(self.assoc_df_filen_patt.format(self.input_part, 'pkl'))
-        if write_tsv:
-            df.to_csv(self.assoc_df_filen_patt.format(self.input_part, 'tsv'),
-                      sep='\t', index=False, float_format='%.5g')
+        logging.info(f'Saving to {self.assoc_filen}')
+        df.to_pickle(self.assoc_filen)
         return df
 
-    def get_sparse(self, weight, cutoff):
+    def get_sparse(self, weight, include_empty, cutoff):
         self.sparse_filen = os.path.join(
             self.tensor_dir,
-            f'sparstensr_{weight}_{cutoff}.pkl')
+            f'sparstensr_{weight}_{include_empty}_{cutoff}.pkl')
         if os.path.exists(self.sparse_filen):
             logging.info('Loading tensor..')
             self.sparse_tensor, self.index =  pickle.load(open(
                 self.sparse_filen, mode='rb'))
             return
-        if os.path.exists(self.assoc_df_filen_patt.format(self.input_part,
-                                                          'pkl')):
-            logging.info('Reading association weights from '+
-                         self.assoc_df_filen_patt.format(self.input_part, '.'))
-            self.pmi_df = pd.read_pickle(
-                self.assoc_df_filen_patt.format(self.input_part, 'pkl'))
+        self.assoc_filen = os.path.join(self.project_dir, 'dataframe',
+                f'assoc_{include_empty}_{self.input_part}.pkl')
+        if os.path.exists(self.assoc_filen):
+            logging.info(f'Reading association weights from {self.assoc_filen}')
+            self.pmi_df = pd.read_pickle(self.assoc_filen)
         else:
-            self.pmi_df = self.append_pmi()
+            self.pmi_df = self.append_pmi(include_empty)
         self.pmi_df = self.pmi_df.reset_index()
-        freq_sub_tensor = self.pmi_df[ 
-                (self.pmi_df.freq_nsubj >= cutoff) &
-                (self.pmi_df.freq_ROOT >= cutoff) & 
-                (self.pmi_df.freq_dobj >= cutoff)] 
-        df = freq_sub_tensor.copy()
+        above_cutoff = ((self.pmi_df.freq_nsubj >= cutoff) &
+                        (self.pmi_df.freq_ROOT >= cutoff) &
+                        (self.pmi_df.freq_dobj >= cutoff))
+        df = self.pmi_df[above_cutoff].copy()
         logging.info(f'Preparing the index.. (weight={weight})')
         self.index = {}
         for mode in self.modes:
@@ -144,17 +140,20 @@ class VerbTensor():
                     open(os.path.join(self.tensor_dir, self.sparse_filen),
                          mode='wb'))
 
-    def decomp(self, weight, cutoff, rank, decomp_algo, non_negative):
+    def decomp(self, weight, include_empty, cutoff, rank, decomp_algo,
+            non_negative):
         if cutoff == 0:
             logging.warning('Not implemented, log(0)=?')
-        logging.info((weight, rank, cutoff))
-        non_neg_str = 'non_negative_' if non_negative else '' 
-        decomp_filen = os.path.join(self.tensor_dir,
-                                    f'{non_neg_str}{decomp_algo}_{weight}_{cutoff}_{rank}.pkl')
+        logging.info((weight, rank, include_empty, cutoff))
+        non_neg_str = 'non_negative_' if non_negative else ''
+        include_empty_str = '' if include_empty else '_non-empty'
+        decomp_filen = os.path.join(
+                self.tensor_dir,
+                f'{non_neg_str}{decomp_algo}_{weight}{include_empty_str}_{cutoff}_{rank}.pkl')
         if os.path.exists(decomp_filen):
             logging.warning('File exists')
             return
-        self.get_sparse(weight, cutoff)
+        self.get_sparse(weight, include_empty, cutoff)
         logging.info(self.sparse_tensor.shape)
         logging.info(f'Decomposition..')
         if decomp_algo == 'tucker':
@@ -184,6 +183,9 @@ def parse_args():
     parser.add_argument('--decomp_algo', choices=['tucker', 'parafac'],
         default='tucker')
     parser.add_argument('--rank', default='64')
+    parser.add_argument('--non-empty', action='store_false',
+            dest='include_empty',
+            help='Exclude occurrences with empty arguments')
     parser.add_argument('--cutoff', type=int, default=100000)
     parser.add_argument('--weight', choices=['for', 'rand']+weights,
             default='npmi')
@@ -201,13 +203,18 @@ if __name__ == '__main__':
         #args.rank = 2**exp#np.random.randint(1, 9)
         for weight in weights:
             args.weight = weight#s[np.random.randint(0, len(weights))]
-            decomposer.decomp(weight=args.weight, cutoff=args.cutoff,
-                              rank=args.rank, decomp_algo=args.decomp_algo,
-                              non_negative=args.non_negative)
+            decomposer.decomp(
+                    weight=args.weight, include_empty=args.include_empty,
+                    cutoff=args.cutoff, rank=args.rank,
+                    decomp_algo=args.decomp_algo,
+                    non_negative=args.non_negative)
     elif args.weight == 'rand':
-        #while True:
-        #args.rank = 2**np.random.randint(1, 9)
+        args.non_negative = np.random.randint(2)
+        args.rank = 2**np.random.randint(1, 10)
+        args.include_empty = np.random.randint(2)
+        args.cutoff = np.random.randint(2, 500000)
         args.weight = weights[np.random.randint(0, len(weights))]
-    decomposer.decomp(
-            weight=args.weight, cutoff=args.cutoff, rank=args.rank,
-            decomp_algo=args.decomp_algo, non_negative=args.non_negative)
+        decomposer.decomp(
+                weight=args.weight, include_empty=args.include_empty,
+                cutoff=args.cutoff, rank=args.rank,
+                decomp_algo=args.decomp_algo, non_negative=args.non_negative)
