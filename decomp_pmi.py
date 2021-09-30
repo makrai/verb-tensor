@@ -180,13 +180,14 @@ weights =  ['log_freq', 'pmi', 'iact', 'pmi_sali', 'iact_sali',
 def parse_args():
     parser = argparse.ArgumentParser(
         description='Decompose a tensor of verb and argument cooccurrences')
-    parser.add_argument('--non_negative', action='store_true')
-    parser.add_argument('--decomp_algo', choices=algos, default='tucker')
+    parser.add_argument('--non_negative')#, action='store_true')
+    parser.add_argument('--decomp_algo', choices=['rand'] + algos, 
+                        default='tucker')
     parser.add_argument('--rank', default='64')
-    parser.add_argument('--non-empty', action='store_false',
+    parser.add_argument('--non-empty', #action='store_false',
             dest='include_empty',
             help='Exclude occurrences with empty arguments')
-    parser.add_argument('--cutoff', type=int, default=100000)
+    parser.add_argument('--cutoff', default=100000) # , type=int
     parser.add_argument('--weight', choices=['for', 'rand']+weights,
             default='npmi')
     parser.add_argument('--input-part', default='', dest='input_part')
@@ -201,31 +202,28 @@ if __name__ == '__main__':
     if args.non_negative == 'rand':
         args.non_negative = bool(np.random.randint(2)) 
     if args.decomp_algo == 'rand':
-        args.weight = algos[np.random.randint(0, len(weights))]
+        args.weight = algos[np.random.randint(0, len(algos))]
     if args.rank == 'rand':
         args.rank = str(2**np.random.randint(1, 10))
     if args.include_empty == 'rand':
         args.include_empty = bool(np.random.randint(2))
     if args.cutoff == 'rand':
         args.cutoff = 10**np.random.randint(7)
+    else:
+        args.cutoff = int(args.cutoff)
     if args.weight == 'rand':
         args.weight = weights[np.random.randint(0, len(weights))]
     decomposer.decomp(
         weight=args.weight, include_empty=args.include_empty,
         cutoff=args.cutoff, rank=args.rank, decomp_algo=args.decomp_algo,
         non_negative=args.non_negative)
-    else:
-        decomposer.decomp(
-                weight=args.weight, include_empty=args.include_empty,
-                cutoff=args.cutoff, rank=args.rank,
-                decomp_algo=args.decomp_algo, non_negative=args.non_negative)
-    if args.weight == 'for':
-        #for exp in range(1, 10):
-        #args.rank = 2**exp#np.random.randint(1, 9)
-        for weight in weights:
-            args.weight = weight#s[np.random.randint(0, len(weights))]
-            decomposer.decomp(
-                    weight=args.weight, include_empty=args.include_empty,
-                    cutoff=args.cutoff, rank=args.rank,
-                    decomp_algo=args.decomp_algo,
-                    non_negative=args.non_negative)
+    # if args.weight == 'for' TODO:
+    #     #for exp in range(1, 10):
+    #     #args.rank = 2**exp#np.random.randint(1, 9)
+    #     for weight in weights:
+    #         args.weight = weight#s[np.random.randint(0, len(weights))]
+    #         decomposer.decomp(
+    #                 weight=args.weight, include_empty=args.include_empty,
+    #                 cutoff=args.cutoff, rank=args.rank,
+    #                 decomp_algo=args.decomp_algo,
+    #                 non_negative=args.non_negative)
