@@ -98,7 +98,7 @@ class VerbTensor():
     def get_sparse(self, weight, include_empty, cutoff):
         self.sparse_filen = os.path.join(
             self.tensor_dir,
-            f'sparstensr_{weight}_{include_empty}_{cutoff}.pkl')
+            f'sparstensr_{weight}_{self.include_empty_str}_{cutoff}.pkl')
         if os.path.exists(self.sparse_filen):
             logging.info('Loading tensor..')
             self.sparse_tensor, self.index =  pickle.load(open(
@@ -144,12 +144,13 @@ class VerbTensor():
             non_negative):
         if cutoff == 0:
             logging.warning('Not implemented, log(0)=?')
-        logging.info((weight, rank, include_empty, cutoff))
-        non_neg_str = 'non_negative_' if non_negative else ''
-        include_empty_str = '' if include_empty else '_non-empty'
+        non_neg_str = 'nonneg' if non_negative else 'general'
+        self.include_empty_str = 'optional' if include_empty else 'non-empty'
+        logging.info((non_neg_str, decomp_algo, weight, rank,
+            self.include_empty_str, cutoff))
         decomp_filen = os.path.join(
                 self.tensor_dir,
-                f'{non_neg_str}{decomp_algo}_{weight}{include_empty_str}_{cutoff}_{rank}.pkl')
+                f'{non_neg_str}_{decomp_algo}_{weight}_{self.include_empty_str}_{cutoff}_{rank}.pkl')
         if os.path.exists(decomp_filen):
             logging.warning('File exists')
             return
@@ -180,14 +181,14 @@ weights =  ['log_freq', 'pmi', 'iact', 'pmi_sali', 'iact_sali',
 def parse_args():
     parser = argparse.ArgumentParser(
         description='Decompose a tensor of verb and argument cooccurrences')
-    parser.add_argument('--non_negative')#, action='store_true')
-    parser.add_argument('--decomp_algo', choices=['rand'] + algos, 
+    parser.add_argument('--non-negative', action='store_true')
+    parser.add_argument('--decomp-algo', choices=['rand'] + algos, 
                         default='tucker')
     parser.add_argument('--rank', default='64')
-    parser.add_argument('--non-empty', default=True,#action='store_false',
+    parser.add_argument('--non-empty', action='store_false',
             dest='include_empty',
             help='Exclude occurrences with empty arguments')
-    parser.add_argument('--cutoff', default=100000) # , type=int
+    parser.add_argument('--cutoff', default=100000, type=int)
     parser.add_argument('--weight', choices=['for', 'rand']+weights,
             default='npmi')
     parser.add_argument('--input-part', default='', dest='input_part')

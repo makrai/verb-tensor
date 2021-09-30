@@ -91,15 +91,15 @@ class VerbTensorEvaluator():
                 'mode_to_test has to be eigther svo, nsubj, ROOT, or dobj')
 
     def load_embeddings(self):
-        non_negative_str = 'non_negative_' if self.non_negative else ''
-        include_empty_str = '' if self.include_empty else 'non-empty_'
-        basen = f'{non_negative_str}{self.decomp_algo}_{self.weight}_{include_empty_str}{self.cutoff}_{self.rank}.pkl'
+        non_negative_str = 'nonneg' if self.non_negative else 'general'
+        include_empty_str = 'optional' if self.include_empty else 'non-empty'
+        basen = f'{non_negative_str}_{self.decomp_algo}_{self.weight}_{include_empty_str}_{self.cutoff}_{self.rank}.pkl'
         self.decomped_tns = pickle.load(open(os.path.join(tensor_dir, basen),
                                              mode='rb'))
         factors = self.decomped_tns.factors
         logging.debug(self.include_empty)
         _, self.index = pickle.load(open(os.path.join(tensor_dir,
-            f'sparstensr_{self.weight}_{self.include_empty}_{self.cutoff}.pkl'), mode='rb'))
+            f'sparstensr_{self.weight}_{include_empty_str}_{self.cutoff}.pkl'), mode='rb'))
         if self.decomp_algo == 'parafac':
             factors = [factor.todense() for factor in factors]
         if self.lmbda:
