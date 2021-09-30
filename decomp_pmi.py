@@ -184,7 +184,7 @@ def parse_args():
     parser.add_argument('--decomp_algo', choices=['rand'] + algos, 
                         default='tucker')
     parser.add_argument('--rank', default='64')
-    parser.add_argument('--non-empty', #action='store_false',
+    parser.add_argument('--non-empty', default=True,#action='store_false',
             dest='include_empty',
             help='Exclude occurrences with empty arguments')
     parser.add_argument('--cutoff', default=100000) # , type=int
