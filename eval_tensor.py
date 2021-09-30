@@ -97,6 +97,7 @@ class VerbTensorEvaluator():
         self.decomped_tns = pickle.load(open(os.path.join(tensor_dir, basen),
                                              mode='rb'))
         factors = self.decomped_tns.factors
+        logging.debug(self.include_empty)
         _, self.index = pickle.load(open(os.path.join(tensor_dir,
             f'sparstensr_{self.weight}_{self.include_empty}_{self.cutoff}.pkl'), mode='rb'))
         if self.decomp_algo == 'parafac':
@@ -113,10 +114,10 @@ class VerbTensorEvaluator():
         modes = ['nsubj', 'ROOT', 'dobj']
         self.oov = defaultdict(int)
         def lookup(word, mode_i=1):
-            try:
+            if word in self.index[modes[mode_i]]:
                 return factors[mode_i][self.index[modes[mode_i]][word]]
-            except KeyError as e:
-                self.oov[e.args] += 1
+            else:
+                self.oov[word] += 1
                 return np.zeros(self.rank)
         self.lookup = lookup
 
@@ -146,8 +147,8 @@ class VerbTensorEvaluator():
             return series[0].dot(series[1])
         target_col = 'tensor_sim'#_{self.weight}_{self.cutoff}_{self.rank}'
         task_df[target_col] = task_df[query_v_cols].apply(cell_dot_cell, axis=1)
-        logging.debug(sorted(self.oov.items(), key=operator.itemgetter(1),
-                             reverse=True)[:5])
+        top_oov = sorted(self.oov.items(), key=operator.itemgetter(1), reverse=True)[:5]
+        logging.debug(f'OOV: {top_oov}')
         sim_corr = task_df.corr(method='spearman').loc[self.sim_col]
         logging.debug(sim_corr)
         return sim_corr[target_col]
@@ -188,6 +189,7 @@ class VerbTensorEvaluator():
 if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG,
                         format='%(levelname)-8s [%(lineno)d] %(message)s')
-    evalor = VerbTensorEvaluator()
+    evalor = VerbTensorEvaluator(weight='niact', include_empty=False,
+            cutoff=1000000, rank=512)
     evalor.test_sim(read_ks().reset_index())
     #evalor.predict_verb(read_gs().reset_index())

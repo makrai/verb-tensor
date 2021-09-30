@@ -173,6 +173,7 @@ class VerbTensor():
         pickle.dump(result, open(decomp_filen, mode='wb'))
 
 
+algos = ['tucker', 'parafac']
 weights =  ['log_freq', 'pmi', 'iact', 'pmi_sali', 'iact_sali',
             'ldice', 'ldice_sali', 'npmi', 'niact'] # freq TODO
 
@@ -180,8 +181,7 @@ def parse_args():
     parser = argparse.ArgumentParser(
         description='Decompose a tensor of verb and argument cooccurrences')
     parser.add_argument('--non_negative', action='store_true')
-    parser.add_argument('--decomp_algo', choices=['tucker', 'parafac'],
-        default='tucker')
+    parser.add_argument('--decomp_algo', choices=algos, default='tucker')
     parser.add_argument('--rank', default='64')
     parser.add_argument('--non-empty', action='store_false',
             dest='include_empty',
@@ -198,6 +198,27 @@ if __name__ == '__main__':
                         format='%(levelname)-8s [%(lineno)d] %(message)s')
     args = parse_args()
     decomposer = VerbTensor(args.input_part)
+    if args.non_negative == 'rand':
+        args.non_negative = bool(np.random.randint(2)) 
+    if args.decomp_algo == 'rand':
+        args.weight = algos[np.random.randint(0, len(weights))]
+    if args.rank == 'rand':
+        args.rank = str(2**np.random.randint(1, 10))
+    if args.include_empty == 'rand':
+        args.include_empty = bool(np.random.randint(2))
+    if args.cutoff == 'rand':
+        args.cutoff = 10**np.random.randint(7)
+    if args.weight == 'rand':
+        args.weight = weights[np.random.randint(0, len(weights))]
+    decomposer.decomp(
+        weight=args.weight, include_empty=args.include_empty,
+        cutoff=args.cutoff, rank=args.rank, decomp_algo=args.decomp_algo,
+        non_negative=args.non_negative)
+    else:
+        decomposer.decomp(
+                weight=args.weight, include_empty=args.include_empty,
+                cutoff=args.cutoff, rank=args.rank,
+                decomp_algo=args.decomp_algo, non_negative=args.non_negative)
     if args.weight == 'for':
         #for exp in range(1, 10):
         #args.rank = 2**exp#np.random.randint(1, 9)
@@ -208,13 +229,3 @@ if __name__ == '__main__':
                     cutoff=args.cutoff, rank=args.rank,
                     decomp_algo=args.decomp_algo,
                     non_negative=args.non_negative)
-    elif args.weight == 'rand':
-        args.non_negative = np.random.randint(2)
-        args.rank = 2**np.random.randint(1, 10)
-        args.include_empty = np.random.randint(2)
-        args.cutoff = np.random.randint(2, 500000)
-        args.weight = weights[np.random.randint(0, len(weights))]
-        decomposer.decomp(
-                weight=args.weight, include_empty=args.include_empty,
-                cutoff=args.cutoff, rank=args.rank,
-                decomp_algo=args.decomp_algo, non_negative=args.non_negative)
