@@ -57,28 +57,28 @@ class VerbTensor():
         for name in df.columns[i_marginal_start:]:
             # Computing log-probabilities or 1- and 2-marginals
             # TODO cutoff == 0 -> log(0)
-            df[f'log_prob_{name}'] = np.log2(df[name])
-            df[f'log_prob_{name}'] -= log_total
-        df['log_freq'] = np.log2(df.freq)
-        df['log_prob'] = df.log_freq - log_total
-        df['pmi'] = df.log_prob
-        df['iact'] = -df.log_prob
+            df[f'log-prob_{name}'] = np.log2(df[name])
+            df[f'log-prob_{name}'] -= log_total
+        df['log-freq'] = np.log2(df.freq)
+        df['log-prob'] = df.log-freq - log_total
+        df['pmi'] = df.log-prob
+        df['iact'] = -df.log-prob
         for mode in self.modes:
-            df.pmi -= df[f'log_prob_freq_{mode}']
-            df.iact -= df[f'log_prob_freq_{mode}']
+            df.pmi -= df[f'log-prob_freq_{mode}']
+            df.iact -= df[f'log-prob_freq_{mode}']
         for mode_pair in itertools.combinations(self.modes, 2):
-            df.iact += df[f'log_prob_freq_{mode_pair}']
+            df.iact += df[f'log-prob_freq_{mode_pair}']
         if positive:
             df['0'] = 0
             df.pmi = df[['pmi', '0']].max(axis=1)
             df.iact = df[['iact', '0']].max(axis=1)
             del df['0']
-        df['npmi'] = df.pmi / -df.log_prob
-        df['niact'] = df.iact / -df.log_prob
+        df['npmi'] = df.pmi / -df.log-prob
+        df['niact'] = df.iact / -df.log-prob
         # TODO Interpretation of positive pointwise interaction information
-        #logging.debug('Computing pmi_sali..')
-        df['pmi_sali'] = df.pmi * df.log_freq
-        df['iact_sali'] = df.iact * df.log_freq
+        #logging.debug('Computing pmi-sali..')
+        df['pmi-sali'] = df.pmi * df.log-freq
+        df['iact-sali'] = df.iact * df.log-freq
 
         #logging.debug('Computing Dice..')
         df['ldice'] = df.freq
@@ -90,7 +90,7 @@ class VerbTensor():
         df.ldice = np.log2(df.ldice)
         df.ldice -= df.ldice.min()
 
-        df['ldice_sali'] = df.ldice * df.log_freq
+        df['ldice-sali'] = df.ldice * df.log-freq
         logging.info(f'Saving to {self.assoc_filen}')
         df.to_pickle(self.assoc_filen)
         return df
@@ -175,8 +175,8 @@ class VerbTensor():
 
 
 algos = ['tucker', 'parafac']
-weights =  ['log_freq', 'pmi', 'iact', 'pmi_sali', 'iact_sali',
-            'ldice', 'ldice_sali', 'npmi', 'niact'] # freq TODO
+weights =  ['log-freq', 'pmi', 'iact', 'pmi-sali', 'iact-sali',
+            'ldice', 'ldice-sali', 'npmi', 'niact'] # freq TODO
 
 def parse_args():
     parser = argparse.ArgumentParser(
