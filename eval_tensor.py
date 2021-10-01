@@ -18,11 +18,6 @@ config.read('config.ini')
 tensor_dir = config['DEFAULT']['ProjectDirectory']+'tensor/'
 test_data_dir = '/mnt/permanent/Language/English/Data/'
 verb_sim_data_dir = f'{test_data_dir}verb-similarity/Sadrzadeh/'
-consistent_name_d = {
-    'freq': 'freq_vanl',
-    'pmi': 'pmi_vanl', 'iact_info': 'iact_vanl', 'log_dice': 'dice_vanl', # vanl
-    'npmi': 'pmi_norm', 'niact': 'iact_norm', # normed
-    'salience': 'pmi_sali', 'iact_sali': 'iact_sali', 'dice_sali': 'dice_sali'}
 
 
 def read_sim_data(filen):
