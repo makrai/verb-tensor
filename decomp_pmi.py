@@ -184,13 +184,13 @@ def parse_args():
     parser.add_argument('--non-negative', action='store_true')
     parser.add_argument('--decomp-algo', choices=['rand'] + algos, 
                         default='tucker')
+    parser.add_argument('--weight', choices=['for', 'rand']+weights,
+                        default='npmi')
     parser.add_argument('--rank', default='64')
     parser.add_argument('--non-empty', action='store_false',
             dest='include_empty',
             help='Exclude occurrences with empty arguments')
     parser.add_argument('--cutoff', default=100000, type=int)
-    parser.add_argument('--weight', choices=['for', 'rand']+weights,
-            default='npmi')
     parser.add_argument('--input-part', default='', dest='input_part')
     return parser.parse_args()
 
@@ -212,19 +212,17 @@ if __name__ == '__main__':
         args.cutoff = 10**np.random.randint(7)
     else:
         args.cutoff = int(args.cutoff)
-    if args.weight == 'rand':
-        args.weight = weights[np.random.randint(0, len(weights))]
-    decomposer.decomp(
-        weight=args.weight, include_empty=args.include_empty,
-        cutoff=args.cutoff, rank=args.rank, decomp_algo=args.decomp_algo,
-        non_negative=args.non_negative)
-    # if args.weight == 'for' TODO:
-    #     #for exp in range(1, 10):
-    #     #args.rank = 2**exp#np.random.randint(1, 9)
-    #     for weight in weights:
-    #         args.weight = weight#s[np.random.randint(0, len(weights))]
-    #         decomposer.decomp(
-    #                 weight=args.weight, include_empty=args.include_empty,
-    #                 cutoff=args.cutoff, rank=args.rank,
-    #                 decomp_algo=args.decomp_algo,
-    #                 non_negative=args.non_negative)
+    if args.weight == 'for':
+        for weight in weights:
+            args.weight = weights[np.random.randint(0, len(weights))]
+            decomposer.decomp(
+                weight=args.weight, include_empty=args.include_empty,
+                cutoff=args.cutoff, rank=args.rank,
+                decomp_algo=args.decomp_algo, non_negative=args.non_negative)
+    else:
+        if args.weight == 'rand':
+            args.weight = weights[np.random.randint(0, len(weights))]
+        decomposer.decomp(
+            weight=args.weight, include_empty=args.include_empty,
+            cutoff=args.cutoff, rank=args.rank, decomp_algo=args.decomp_algo,
+            non_negative=args.non_negative)
