@@ -20,6 +20,7 @@ import tensorly as tl
 from tensorly.contrib.sparse.decomposition import tucker, non_negative_tucker
 from tensorly import tensor
 from tensorly.contrib.sparse.decomposition import parafac
+from tensorly.contrib.sparse.decomposition import non_negative_parafac
 
 
 class VerbTensor():
@@ -166,11 +167,13 @@ class VerbTensor():
         else:
             rank = int(rank)
             if non_negative:
-                raise NotImplementedError
-            #tl.set_backend('pytorch')
-            result = parafac(self.sparse_tensor, init='random', rank=rank,
-                             verbose=True)
-            # tensor(.., device='cuda:0')
+                result = non_negative_parafac(self.sparse_tensor, rank,
+                                              init='random', verbose=True)
+            else:
+                #tl.set_backend('pytorch')
+                result = parafac(self.sparse_tensor, init='random', rank=rank,
+                                 verbose=True)
+                # tensor(.., device='cuda:0')
         pickle.dump(result, open(decomp_filen, mode='wb'))
 
 
@@ -182,7 +185,7 @@ def parse_args():
     parser = argparse.ArgumentParser(
         description='Decompose a tensor of verb and argument cooccurrences')
     parser.add_argument('--non-negative', action='store_true')
-    parser.add_argument('--decomp-algo', choices=['rand'] + algos, 
+    parser.add_argument('--decomp-algo', choices=['rand'] + algos,
                         default='tucker')
     parser.add_argument('--weight', choices=['for', 'rand']+weights,
                         default='npmi')
@@ -201,7 +204,7 @@ if __name__ == '__main__':
     args = parse_args()
     decomposer = VerbTensor(args.input_part)
     if args.non_negative == 'rand':
-        args.non_negative = bool(np.random.randint(2)) 
+        args.non_negative = bool(np.random.randint(2))
     if args.decomp_algo == 'rand':
         args.weight = algos[np.random.randint(0, len(algos))]
     if args.rank == 'rand':
