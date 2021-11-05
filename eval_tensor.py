@@ -47,9 +47,9 @@ def read_SimLex():
 
 
 class VerbTensorEvaluator():
-    def __init__(self, non_negative=False, decomp_algo='tucker', weight='npmi',
-            rank=64, include_empty=True, cutoff=100000, normlz_vocb=False,
-            lmbda=False, mode_to_test='svo'):
+    def __init__(self, weight='pmi-sali', include_empty=True, cutoff=1000000,
+                 non_negative=True, decomp_algo='parafac', rank=64,
+                 normlz_vocb=False, lmbda=False, mode_to_test='svo'):
         self.non_negative = non_negative
         self.decomp_algo = decomp_algo
         self.weight = weight
