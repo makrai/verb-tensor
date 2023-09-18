@@ -1,6 +1,8 @@
 # verb-tensor
 ## Verb sense induction with tensor decomposition
 
+[Paper](https://hlt.bme.hu/en/publ/vtensor22)
+
 1. `count` triples in batches of files and `sum` them
     * debug_get_triple.ipynb
 1. compute association socres with `append_pmi.py`
