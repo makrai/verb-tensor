@@ -107,12 +107,12 @@ class VerbTensorEvaluator():
             mode_i = self.query1_cols[0][0]
             factors[mode_i] /= np.apply_along_axis(
                 np.linalg.norm, 1, factors[mode_i]).reshape((-1, 1))
-        modes = ['nsubj', 'ROOT', 'dobj']
+        self.modes = ['nsubj', 'ROOT', 'dobj']
         self.oov = defaultdict(int)
 
         def lookup(word, mode_i=1):
-            if word in self.index[modes[mode_i]]:
-                return factors[mode_i][self.index[modes[mode_i]][word]]
+            if word in self.index[self.modes[mode_i]]:
+                return factors[mode_i][self.index[self.modes[mode_i]][word]]
             else:
                 self.oov[word] += 1
                 return np.zeros(self.rank)
@@ -123,9 +123,13 @@ class VerbTensorEvaluator():
         self.get_cols()
         self.load_embeddings()
         for mode_i, query_w_col in self.query1_cols + self.query2_cols:
-            series = task_df[query_w_col].apply(
+            task_df[f'{query_w_col}_v'] = task_df[query_w_col].apply(
                 lambda word: self.lookup(word, mode_i=mode_i))
-            task_df['{}_v'.format(query_w_col)] = series
+            task_df[f'{query_w_col}_known'] = task_df[query_w_col].apply(
+                lambda word: word in self.index[self.modes[mode_i]])
+        words_known = task_df[[f'{query_w_col[1]}_known'
+                               for query_w_col in self.query1_cols + self.query2_cols]]
+        known_word_ratio = words_known.all(axis='columns').mean()
         if self.mode_to_test == 'svo':
             for qwocs, svo_vc in [(self.query1_cols, 'svo1_v'),
                                   (self.query2_cols, 'svo2_v')]:
@@ -148,7 +152,7 @@ class VerbTensorEvaluator():
         logging.debug(f'OOV: {top_oov}')
         sim_corr = task_df.corr(method='spearman').loc[self.sim_col]
         logging.debug(sim_corr)
-        return sim_corr[target_col]
+        return sim_corr[target_col], known_word_ratio
 
     def predict_verb(self, target_df, prec_at=1, logg_oov=False,
                      target_pref='verb', cols_suff='', majority_baseline=5):
